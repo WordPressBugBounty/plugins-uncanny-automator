@@ -137,7 +137,7 @@ class Aweber_Settings extends \Uncanny_Automator\Settings\Premium_Integration_Se
 		<?php } else { ?>
 
 			<uo-alert type="info" heading="<?php echo esc_attr_x( 'Uncanny Automator supports connecting multiple AWeber account at a time.', 'AWeber', 'uncanny-automator' ); ?>" class="uap-spacing-bottom">
-			<?php echo esc_html_x( 'Uncanny Automator helps you link many AWeber accounts at once. You can pick a different account for each action that needs account details. This gives you more choices and control.', 'AWeber', 'Uncanny Automator' ); ?>
+			<?php echo esc_html_x( 'Uncanny Automator helps you link many AWeber accounts at once. You can pick a different account for each action that needs account details. This gives you more choices and control.', 'AWeber', 'uncanny-automator' ); ?>
 			</uo-alert>
 
 			<?php
@@ -196,7 +196,7 @@ class Aweber_Settings extends \Uncanny_Automator\Settings\Premium_Integration_Se
 		if ( $this->is_account_connected ) {
 			?>
 			<uo-button color="danger" href="<?php echo esc_url( $this->disconnect_url ); ?>">
-				<uo-icon id="sign-out"></uo-icon>
+				<uo-icon id="right-from-bracket"></uo-icon>
 				<?php esc_html_e( 'Disconnect', 'uncanny-automator' ); ?>
 			</uo-button>
 			<?php

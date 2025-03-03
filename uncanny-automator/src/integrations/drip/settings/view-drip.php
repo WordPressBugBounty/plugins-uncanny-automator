@@ -73,7 +73,7 @@ $client = $this->functions->get_client();
 
 				<?php } else { ?>
 
-					<uo-alert heading="<?php echo esc_attr( sprintf( __( 'Uncanny Automator only supports connecting to one Drip account at a time.', 'uncanny-automator' ) ) ); ?>" class="uap-spacing-bottom">
+					<uo-alert heading="<?php echo esc_attr( sprintf( esc_html__( 'Uncanny Automator only supports connecting to one Drip account at a time.', 'uncanny-automator' ) ) ); ?>" class="uap-spacing-bottom">
 						<?php esc_html_e( 'You can only connect to a Drip account for which you have read and write access.', 'uncanny-automator' ); ?>
 					</uo-alert>
 
@@ -141,7 +141,7 @@ $client = $this->functions->get_client();
 
 					<div class="uap-settings-panel-bottom-right">
 						<uo-button color="danger" href="<?php echo esc_url( $disconnect_url ); ?>">
-							<uo-icon id="sign-out"></uo-icon>
+							<uo-icon id="right-from-bracket"></uo-icon>
 						<?php esc_html_e( 'Disconnect', 'uncanny-automator' ); ?>
 						</uo-button>
 					</div>

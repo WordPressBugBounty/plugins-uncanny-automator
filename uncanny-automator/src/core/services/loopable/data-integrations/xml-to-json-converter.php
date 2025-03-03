@@ -34,6 +34,16 @@ class Xml_To_Json_Converter {
 	private $xpath = '/';
 
 	/**
+	 * @var int Sensible default HTTP Request timeout. Most servers have 30 seconds default timeout. Adding 25 seconds to allow 5 seconds processing.
+	 */
+	protected $http_request_timeout = 25;
+
+	/**
+	 * @var string The default user agent for HTTP Requests related to data integrations.
+	 */
+	protected $http_request_user_agent = '';
+
+	/**
 	 * Load XML data from a URL using wp_remote_get.
 	 *
 	 * @param string $url The URL of the XML file.
@@ -42,15 +52,34 @@ class Xml_To_Json_Converter {
 	 */
 	public function load_from_url( $url ) {
 
-		$response = wp_remote_get( $url );
+		// Overwrite the default WordPress HTTP agent because some feed doesnt like the syntax and its breaking due to multiple backslashes, or special characters';
+		$this->http_request_user_agent = 'WordPress/' . wp_get_wp_version() . ';' . urlencode( get_bloginfo( 'url' ) );
 
+		$args = array(
+			'timeout'    => apply_filters( 'http_request_timeout', $this->http_request_timeout, $url ),
+			'user-agent' => $this->http_request_user_agent,
+		);
+
+		$response = wp_remote_get( $url, $args );
 		if ( is_wp_error( $response ) ) {
-			throw new RuntimeException( 'Failed to fetch the XML from the provided URL.' );
+			throw new RuntimeException(
+				sprintf(
+				/* translators: %s: Error message */
+					esc_html__( 'Failed to fetch the XML from the provided URL. %s', 'uncanny-automator' ),
+					esc_html( $response->get_error_message() )
+				)
+			);
 		}
 
 		$xml_data = wp_remote_retrieve_body( $response );
 		if ( empty( $xml_data ) ) {
-			throw new RuntimeException( 'No content found in the provided URL.' );
+			throw new RuntimeException(
+				sprintf(
+				/* translators: %s: URL */
+					esc_html__( 'No content found in the provided URL: %s', 'uncanny-automator' ),
+					esc_url( $url )
+				)
+			);
 		}
 
 		$this->xml_content = $xml_data;
@@ -70,9 +99,8 @@ class Xml_To_Json_Converter {
 		if ( ! file_exists( $file_path ) || ! is_readable( $file_path ) ) {
 			throw new RuntimeException( 'The file does not exist or is not readable.' );
 		}
-
 		// Local file.
-		$xml_data          = file_get_contents( $file_path ); //phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+		$xml_data          = file_get_contents( $file_path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
 		$this->xml_content = $xml_data;
 
 		return $this;
@@ -116,7 +144,6 @@ class Xml_To_Json_Converter {
 	 * @throws RuntimeException If the XPath query returns no results.
 	 */
 	public function to_json() {
-
 		return $this->convert_xml_to_json( $this->xml_content, $this->xpath );
 	}
 
@@ -145,7 +172,7 @@ class Xml_To_Json_Converter {
 		$filtered_xml = $xml->xpath( $xpath );
 
 		if ( empty( $filtered_xml ) ) {
-			throw new RuntimeException( "No results found for the specified XPath: $xpath." );
+			throw new RuntimeException( esc_html( "No results found for the specified XPath: $xpath." ) );
 		}
 
 		// Convert the filtered XML result into JSON.
@@ -194,5 +221,4 @@ class Xml_To_Json_Converter {
 
 		return $json_array;
 	}
-
 }

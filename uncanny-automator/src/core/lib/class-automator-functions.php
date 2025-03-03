@@ -1,4 +1,4 @@
-<?php //phpcs:ignore Internal.Exception
+<?php // phpcs:ignore Internal.Exception
 
 namespace Uncanny_Automator;
 
@@ -1220,7 +1220,7 @@ WHERE pm.post_id
 		$completed = array();
 		global $wpdb;
 		$results = $wpdb->get_results(
-			$wpdb->prepare( "SELECT COUNT(completed) AS completed, automator_recipe_id FROM {$wpdb->prefix}uap_recipe_log WHERE user_id = %d AND automator_recipe_id IN (" . join( ',', $recipe_ids ) . ') AND completed = 1 GROUP BY automator_recipe_id', $user_id ) //phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+			$wpdb->prepare( "SELECT COUNT(completed) AS completed, automator_recipe_id FROM {$wpdb->prefix}uap_recipe_log WHERE user_id = %d AND automator_recipe_id IN (" . join( ',', $recipe_ids ) . ') AND completed = 1 GROUP BY automator_recipe_id', $user_id ) // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		);
 
 		if ( $results ) {
@@ -2513,4 +2513,20 @@ WHERE pm.post_id
 		return get_option( 'time_format', $default );
 	}
 
+	/**
+	 * Checks if an app is connected.
+	 *
+	 * @param string $integration_code The integration code.
+	 * @return bool True if it's not an app or the app is connected, false otherwise.
+	 */
+	public function is_app_connected( $integration_code ) {
+
+		$all_integrations = Automator()->get_integrations();
+
+		if ( false === $all_integrations[ $integration_code ]['connected'] ) {
+			return false;
+		}
+
+		return true;
+	}
 }

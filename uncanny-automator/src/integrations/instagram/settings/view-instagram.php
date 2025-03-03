@@ -142,7 +142,7 @@ namespace Uncanny_Automator;
 									<?php if ( ! empty( $user_info['user_id'] ) ) { ?>
 
 										<?php /* translators: 1. ID */ ?>
-										<?php echo esc_html( sprintf( __( 'ID: %1$d', 'uncanny-automator' ), $user_info['user_id'] ) ); ?>
+										<?php echo esc_html( sprintf( esc_html__( 'ID: %1$d', 'uncanny-automator' ), $user_info['user_id'] ) ); ?>
 
 									<?php } ?>
 
@@ -158,7 +158,7 @@ namespace Uncanny_Automator;
 
 						<uo-button color="danger" href="<?php echo esc_url( $disconnect_uri ); ?>">
 
-							<uo-icon id="sign-out"></uo-icon>
+							<uo-icon id="right-from-bracket"></uo-icon>
 
 							<?php esc_html_e( 'Disconnect', 'uncanny-automator' ); ?>
 

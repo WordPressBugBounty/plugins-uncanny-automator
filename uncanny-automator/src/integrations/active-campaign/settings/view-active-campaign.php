@@ -23,12 +23,12 @@
 
 							$connect = automator_filter_input( 'connect' );
 
-							$alert_heading = __( 'There was an error connecting your ActiveCampaign account. Please try again or contact support.', 'uncanny-automator' );
+							$alert_heading = esc_html__( 'There was an error connecting your ActiveCampaign account. Please try again or contact support.', 'uncanny-automator' );
 							$alert_type    = 'error';
-							$alert_content = __( 'Error: ', 'uncanny-automator' ) . $connect;
+							$alert_content = esc_html__( 'Error:', 'uncanny-automator' ) . $connect;
 
 							if ( 1 == $connect ) {
-								$alert_heading = __( 'You have successfully connected your ActiveCampaign account', 'uncanny-automator' );
+								$alert_heading = esc_html__( 'You have successfully connected your ActiveCampaign account', 'uncanny-automator' );
 								$alert_type    = 'success';
 								$alert_content = '';
 							}
@@ -121,7 +121,7 @@
 							<li>
 								<?php
 								echo wp_kses(
-									__( 'Log in to your <a target="_blank" href="https://www.activecampaign.com/login" target="_blank">ActiveCampaign account</a>.', 'uncanny-automator' ),
+									__( 'Log in to your <a target="_blank" href="https://www.activecampaign.com/login" target="_blank">ActiveCampaign account</a>.', 'uncanny-automator' ), // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
 									array(
 										'a' => array(
 											'href'   => array(),
@@ -176,7 +176,7 @@
 						<p id="active-campaign-local-sync-p" class="uap-spacing-bottom uap-spacing-bottom--none">
 							<hr/>
 							<uo-button size="extra-small" id="active-campaign-local-syn-btn" color="secondary">
-								<uo-icon id="sync"></uo-icon>
+								<uo-icon id="rotate"></uo-icon>
 								<?php esc_html_e( 'Refresh', 'uncanny-automator' ); ?>
 							</uo-button>
 						</p>
@@ -213,12 +213,11 @@
 
 							<uo-button
 								onclick="return confirm('<?php echo esc_html( $this->regenerate_alert ); ?>');"
-								href="<?php esc_attr_e( $this->regenerate_key_url ); ?>"
-								size="small"
+								href="<?php echo esc_url( $this->regenerate_key_url ); ?>"								size="small"
 								color="secondary"
 								class="uap-spacing-top"
 							>
-								<uo-icon id="sync"></uo-icon>
+								<uo-icon id="rotate"></uo-icon>
 								<?php esc_attr_e( 'Regenerate webhook URL', 'uncanny-automator' ); ?>
 							</uo-button>
 
@@ -287,7 +286,7 @@
 						href="<?php echo esc_url( $this->disconnect_url ); ?>"
 						color="danger"
 					>
-						<uo-icon id="sign-out"></uo-icon>
+						<uo-icon id="right-from-bracket"></uo-icon>
 
 						<?php esc_html_e( 'Disconnect', 'uncanny-automator' ); ?>
 					</uo-button>
@@ -305,5 +304,5 @@
 		</div>
 
 	</div>
-	<input type="hidden" name="uap_active_campaign_settings_timestamp" value="<?php esc_attr_e( time() ); ?>" >
+	<input type="hidden" name="uap_active_campaign_settings_timestamp" value="<?php echo esc_attr( time() ); ?>" >
 </form>

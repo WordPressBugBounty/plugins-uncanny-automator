@@ -79,62 +79,62 @@ if ( ! defined( 'ABSPATH' ) ) {
 					<ul>
 						<li>
 							<uo-icon id="bolt"></uo-icon>
-							<?php esc_html_e( 'Action' ); ?>:
+							<?php esc_html_e( 'Action', 'uncanny-automator' ); ?>:
 							<?php esc_html_e( 'Analyze sentiment with GPT-4', 'uncanny-automator' ); ?>
 						</li>
 						<li>
 							<uo-icon id="bolt"></uo-icon>
-							<?php esc_html_e( 'Action' ); ?>:
+							<?php esc_html_e( 'Action', 'uncanny-automator' ); ?>:
 							<?php esc_html_e( 'Correct spelling and grammar with GPT-4', 'uncanny-automator' ); ?>
 						</li>
 						<li>
 							<uo-icon id="bolt"></uo-icon>
-							<?php esc_html_e( 'Action' ); ?>:
+							<?php esc_html_e( 'Action', 'uncanny-automator' ); ?>:
 							<?php esc_html_e( 'Create a list of links that might help resolve a customer request with GPT-4', 'uncanny-automator' ); ?>
 						</li>
 						<li>
 							<uo-icon id="bolt"></uo-icon>
-							<?php esc_html_e( 'Action' ); ?>:
+							<?php esc_html_e( 'Action', 'uncanny-automator' ); ?>:
 							<?php esc_html_e( 'Generate a meta description with GPT-4', 'uncanny-automator' ); ?>
 						</li>
 						<li>
 							<uo-icon id="bolt"></uo-icon>
-							<?php esc_html_e( 'Action' ); ?>:
+							<?php esc_html_e( 'Action', 'uncanny-automator' ); ?>:
 							<?php esc_html_e( 'Generate an excerpt suitable for Instagram with GPT-4', 'uncanny-automator' ); ?>
 						</li>
 						<li>
 							<uo-icon id="bolt"></uo-icon>
-							<?php esc_html_e( 'Action' ); ?>:
+							<?php esc_html_e( 'Action', 'uncanny-automator' ); ?>:
 							<?php esc_html_e( 'Generate an excerpt suitable for Twitter with GPT-4', 'uncanny-automator' ); ?>
 						</li>
 						<li>
 							<uo-icon id="bolt"></uo-icon>
-							<?php esc_html_e( 'Action' ); ?>:
+							<?php esc_html_e( 'Action', 'uncanny-automator' ); ?>:
 							<?php esc_html_e( 'Generate an excerpt with GPT-4', 'uncanny-automator' ); ?>
 						</li>
 						<li>
 							<uo-icon id="bolt"></uo-icon>
-							<?php esc_html_e( 'Action' ); ?>:
+							<?php esc_html_e( 'Action', 'uncanny-automator' ); ?>:
 							<?php esc_html_e( 'Generate an SEO title with GPT-4', 'uncanny-automator' ); ?>
 						</li>
 						<li>
 							<uo-icon id="bolt"></uo-icon>
-							<?php esc_html_e( 'Action' ); ?>:
+							<?php esc_html_e( 'Action', 'uncanny-automator' ); ?>:
 							<?php esc_html_e( 'Translate text with GPT-4', 'uncanny-automator' ); ?>
 						</li>
 						<li>
 							<uo-icon id="bolt"></uo-icon>
-							<?php esc_html_e( 'Action' ); ?>:
+							<?php esc_html_e( 'Action', 'uncanny-automator' ); ?>:
 							<?php esc_html_e( 'Use a prompt to generate an image', 'uncanny-automator' ); ?>
 						</li>
 						<li>
 							<uo-icon id="bolt"></uo-icon>
-							<?php esc_html_e( 'Action' ); ?>:
+							<?php esc_html_e( 'Action', 'uncanny-automator' ); ?>:
 							<?php esc_html_e( 'Use a prompt to generate text', 'uncanny-automator' ); ?>
 						</li>
 						<li>
 							<uo-icon id="bolt"></uo-icon>
-							<?php esc_html_e( 'Action' ); ?>:
+							<?php esc_html_e( 'Action', 'uncanny-automator' ); ?>:
 							<?php esc_html_e( 'Use a prompt to generate text with the GPT model', 'uncanny-automator' ); ?>
 						</li>
 					</ul>
@@ -211,7 +211,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 				<?php if ( ! empty( $vars['is_connected'] ) ) { ?>
 
 					<uo-button href="<?php echo esc_url( $vars['disconnect_url'] ); ?>" color="danger">
-						<uo-icon id="sign-out"></uo-icon>
+						<uo-icon id="right-from-bracket"></uo-icon>
 						<?php esc_html_e( 'Disconnect', 'uncanny-automator' ); ?>
 					</uo-button>
 

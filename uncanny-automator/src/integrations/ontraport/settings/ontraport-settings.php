@@ -47,7 +47,6 @@ class Ontraport_Settings extends \Uncanny_Automator\Settings\Premium_Integration
 	public function get_status() {
 
 		return true === $this->helpers->integration_status() ? 'success' : '';
-
 	}
 
 	/**
@@ -66,7 +65,6 @@ class Ontraport_Settings extends \Uncanny_Automator\Settings\Premium_Integration
 		if ( automator_filter_has_var( 'error_message' ) ) {
 			$this->display_errors( automator_filter_input( 'error_message' ) );
 		}
-
 	}
 
 	/**
@@ -250,7 +248,6 @@ class Ontraport_Settings extends \Uncanny_Automator\Settings\Premium_Integration
 
 			<?php
 		}
-
 	}
 
 	/**
@@ -280,15 +277,15 @@ class Ontraport_Settings extends \Uncanny_Automator\Settings\Premium_Integration
 
 				<div class="uap-settings-panel-user-info">
 					<div class="uap-settings-panel-user-info__main">
-						<?php echo _x( 'Ontraport account', 'Ontraport', 'uncanny-automator' ); ?>
+						<?php echo esc_html_x( 'Ontraport account', 'Ontraport', 'uncanny-automator' ); ?>
 					</div>
 
 					<div class="uap-settings-panel-user-info__additional">
 						<?php
 						printf(
-							/* translators: 1. Email address */
-							esc_html_x( 'APP ID: %1$s', 'Ontraport', 'uncanny-automator' ),
-							automator_get_option( self::OPT_APP_ID_KEY, '' )
+						/* translators: %s: Ontraport APP ID */
+							esc_html_x( 'APP ID: %s', 'Ontraport', 'uncanny-automator' ),
+							esc_html( automator_get_option( self::OPT_APP_ID_KEY, '' ) )
 						);
 						?>
 					</div>
@@ -309,12 +306,11 @@ class Ontraport_Settings extends \Uncanny_Automator\Settings\Premium_Integration
 		if ( $this->is_account_connected ) {
 			?>
 			<uo-button color="danger" href="<?php echo esc_url( $this->disconnect_url ); ?>">
-				<uo-icon id="sign-out"></uo-icon>
+				<uo-icon id="right-from-bracket"></uo-icon>
 				<?php esc_html_e( 'Disconnect', 'uncanny-automator' ); ?>
 			</uo-button>
 			<?php
 
 		}
 	}
-
 }

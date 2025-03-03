@@ -117,7 +117,7 @@
 										echo esc_html(
 											sprintf(
 												/* translators: 1. ID */
-												__( 'Hub Domain: %1$s', 'uncanny-automator' ),
+												esc_html__( 'Hub Domain: %1$s', 'uncanny-automator' ),
 												$token_info['hub_domain']
 											)
 										);
@@ -157,7 +157,7 @@
 						href="<?php echo esc_url( $disconnect_url ); ?>"
 						color="danger"
 					>
-						<uo-icon id="sign-out"></uo-icon>
+						<uo-icon id="right-from-bracket"></uo-icon>
 
 						<?php esc_html_e( 'Disconnect', 'uncanny-automator' ); ?>
 					</uo-button>

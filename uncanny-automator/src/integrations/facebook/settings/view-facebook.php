@@ -139,7 +139,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 									echo esc_html(
 										sprintf(
 											/* translators: 1. ID */
-											__( 'ID: %1$d', 'uncanny-automator' ),
+											esc_html__( 'ID: %1$d', 'uncanny-automator' ),
 											absint( $user_info['user_id'] )
 										)
 									);
@@ -157,7 +157,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 					<uo-button color="danger" href="<?php echo esc_url( $disconnect_uri ); ?>">
 
-						<uo-icon id="sign-out"></uo-icon>
+						<uo-icon id="right-from-bracket"></uo-icon>
 
 						<?php esc_html_e( 'Disconnect', 'uncanny-automator' ); ?>
 

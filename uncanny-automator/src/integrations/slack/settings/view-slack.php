@@ -21,7 +21,7 @@ namespace Uncanny_Automator;
 
 // The Slack icon. This is a preview, and it's not really the icon Automator sends to Slack
 // The one sent is bigger (this is 80x80, the one sent is 1024x1024)
-$default_icon_preview = plugins_url( 'assets/slack-avatar@2x.png', __FILE__ );
+$default_icon_preview = plugins_url( 'assets/slack-avatar-2x.png', __FILE__ );
 
 ?>
 
@@ -258,7 +258,7 @@ $default_icon_preview = plugins_url( 'assets/slack-avatar@2x.png', __FILE__ );
 									echo esc_html(
 										sprintf(
 											/* translators: 1. ID */
-											__( 'ID: %1$s', 'uncanny-automator' ),
+											esc_html__( 'ID: %1$s', 'uncanny-automator' ),
 											$slack_id
 										)
 									);
@@ -281,7 +281,7 @@ $default_icon_preview = plugins_url( 'assets/slack-avatar@2x.png', __FILE__ );
 						href="<?php echo esc_url( $disconnect_slack_url ); ?>"
 						color="danger"
 					>
-						<uo-icon id="sign-out"></uo-icon>
+						<uo-icon id="right-from-bracket"></uo-icon>
 
 						<?php esc_html_e( 'Disconnect', 'uncanny-automator' ); ?>
 					</uo-button>

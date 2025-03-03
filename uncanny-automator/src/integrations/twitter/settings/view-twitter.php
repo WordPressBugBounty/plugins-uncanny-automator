@@ -81,18 +81,6 @@ $user_just_connected_site = automator_filter_input( 'connect' ) === '1';
 						)
 					);
 
-					// $this->alert_html(
-					// 	array(
-					// 		'type'    => 'error',
-					// 		'heading' => __( 'Warning!', 'uncanny-automator' ),
-					// 		'content' => sprintf(
-					// 			// translators: Link to Tweitter knowledgebase article
-					// 			esc_html__( 'Please reconnect your site to X/Twitter to address the recent API issues. %1$s.', 'uncanny-automator' ),
-					// 			'<a href="' . esc_url( automator_utm_parameters( 'https://automatorplugin.com/knowledge-base/twitter/', 'settings', 'twitter-kb_article' ) ) . '" target="_blank">' . esc_html__( 'Learn More', 'uncanny-automator' ) . ' <uo-icon id="external-link"></uo-icon></a>'
-					// 		),
-					// 	)
-					// );
-
 				}
 
 				?>
@@ -192,7 +180,7 @@ $user_just_connected_site = automator_filter_input( 'connect' ) === '1';
 									echo esc_html(
 										sprintf(
 											/* translators: 1. ID */
-											__( 'ID: %1$s', 'uncanny-automator' ),
+											esc_html__( 'ID: %1$s', 'uncanny-automator' ),
 											$twitter_id
 										)
 									);
@@ -215,7 +203,7 @@ $user_just_connected_site = automator_filter_input( 'connect' ) === '1';
 						href="<?php echo esc_url( $disconnect_twitter_url ); ?>"
 						color="danger"
 					>
-						<uo-icon id="sign-out"></uo-icon>
+						<uo-icon id="right-from-bracket"></uo-icon>
 
 						<?php esc_html_e( 'Disconnect', 'uncanny-automator' ); ?>
 					</uo-button>
