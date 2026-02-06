@@ -77,6 +77,15 @@ class Api_Server {
 	}
 
 	/**
+	 * Reset the license cache.
+	 *
+	 * @return void
+	 */
+	public static function reset_license_cache() {
+		self::$license = null;
+	}
+
+	/**
 	 * get_instance
 	 *
 	 * @return Api_server
@@ -132,14 +141,14 @@ class Api_Server {
 	/**
 	 * default_api_timeout
 	 *
-	 * @param mixed $timeout
-	 * @param mixed $request_url
+	 * @param int $timeout
+	 * @param string $request_url
 	 *
 	 * @return int
 	 */
-	public function default_api_timeout( $timeout, $request_url ) {
+	public function default_api_timeout( $timeout, $request_url = '' ) {
 
-		if ( ! $this->is_api_url( $request_url ) ) {
+		if ( empty( $request_url ) || ! $this->is_api_url( $request_url ) ) {
 			return $timeout;
 		}
 
@@ -208,23 +217,24 @@ class Api_Server {
 		if ( self::has_license_plan_property( $license ) ) {
 			return $license['license_plan'];
 		}
-		
+
 		// If license exists but missing license_plan, try to refresh.
 		if ( $license && ! self::has_license_plan_property( $license ) ) {
 			$license = self::is_automator_connected( true );
 		}
-		
+
 		// If license_plan exists, return it
 		if ( self::has_license_plan_property( $license ) ) {
 			return $license['license_plan'];
 		}
-		
+
 		// Fallback to basic/lite based on license type
 		$license_type = self::get_license_type();
 		if ( ! $license_type ) {
 			return '';
 		}
-		return $license_type === 'pro' ? 'basic' : 'lite';
+
+		return 'pro' === $license_type ? 'basic' : 'lite';
 	}
 
 	/**
@@ -245,7 +255,42 @@ class Api_Server {
 	 * @return string
 	 */
 	public static function get_site_name() {
-		return preg_replace( '(^https?://)', '', get_home_url() );
+		return preg_replace( '#^https?://#', '', get_home_url() );
+	}
+
+	/**
+	 * Get formatted license renewal/expiry date for MCP payload.
+	 *
+	 * @return string Formatted date like "January 1, 2026" or empty string if lifetime/unavailable.
+	 */
+	public static function get_renewal_date_formatted(): string {
+		$license_type = self::get_license_type();
+
+		if ( ! $license_type ) {
+			return '';
+		}
+
+		$expiry = automator_get_option( 'uap_automator_' . $license_type . '_license_expiry', '' );
+
+		if ( empty( $expiry ) || 'lifetime' === $expiry ) {
+			return '';
+		}
+
+		try {
+			$date = new \DateTime( $expiry, wp_timezone() );
+			return $date->format( 'F j, Y' );
+		} catch ( \Exception $e ) {
+			return '';
+		}
+	}
+
+	/**
+	 * Get URL for purchasing additional credits.
+	 *
+	 * @return string URL to credits/pricing page.
+	 */
+	public static function get_url_get_credits(): string {
+		return AUTOMATOR_LLM_CREDITS_URL;
 	}
 
 	/**

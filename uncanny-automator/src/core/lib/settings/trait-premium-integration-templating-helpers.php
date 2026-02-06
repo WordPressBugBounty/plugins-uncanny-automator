@@ -133,6 +133,9 @@ trait Premium_Integration_Templating_Helpers {
 			if ( ! empty( $args['confirm']['button'] ) ) {
 				$attrs['confirmation-button-label'] = $args['confirm']['button'];
 			}
+			if ( ! empty( $args['confirm']['fields'] ) ) {
+				$attrs['confirmation-fields'] = wp_json_encode( $args['confirm']['fields'] );
+			}
 		}
 
 		// Output the button
@@ -189,15 +192,16 @@ trait Premium_Integration_Templating_Helpers {
 	 */
 	public function text_input_html( $input ) {
 		$default = array(
-			'id'          => '',
-			'value'       => '',
-			'label'       => '',
-			'required'    => '',
-			'class'       => '',
-			'hidden'      => '',
-			'disabled'    => '',
-			'placeholder' => '',
-			'helper'      => '',
+			'id'                => '',
+			'value'             => '',
+			'label'             => '',
+			'required'          => '',
+			'class'             => '',
+			'hidden'            => '',
+			'disabled'          => '',
+			'placeholder'       => '',
+			'helper'            => '',
+			'copy-to-clipboard' => false,
 		);
 
 		$input = wp_parse_args( $input, $default );
@@ -212,6 +216,7 @@ trait Premium_Integration_Templating_Helpers {
 			<?php echo ! empty( $input['disabled'] ) ? 'disabled' : ''; ?>
 			<?php echo ! empty( $input['placeholder'] ) ? 'placeholder="' . esc_attr( $input['placeholder'] ) . '"' : ''; ?>
 			<?php echo ! empty( $input['helper'] ) ? 'helper="' . esc_attr( $input['helper'] ) . '"' : ''; ?>
+			<?php echo ! empty( $input['copy-to-clipboard'] ) ? 'copy-to-clipboard' : ''; ?>
 		></uo-text-field>
 		<?php
 	}
@@ -529,15 +534,17 @@ trait Premium_Integration_Templating_Helpers {
 				'show-tooltip' => array(),
 			),
 			'uo-text-field' => array(
-				'id'          => array(),
-				'value'       => array(),
-				'label'       => array(),
-				'class'       => array(),
-				'required'    => array(),
-				'disabled'    => array(),
-				'name'        => array(),
-				'placeholder' => array(),
-				'helper'      => array(),
+				'id'                => array(),
+				'value'             => array(),
+				'type'              => array(),
+				'label'             => array(),
+				'class'             => array(),
+				'required'          => array(),
+				'disabled'          => array(),
+				'name'              => array(),
+				'placeholder'       => array(),
+				'helper'            => array(),
+				'copy-to-clipboard' => array(),
 			),
 		);
 

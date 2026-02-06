@@ -3,6 +3,7 @@
 namespace Uncanny_Automator\Settings;
 
 use Exception;
+use Uncanny_Automator\Api_Server;
 
 /**
  * Trait OAuth_App_Integration
@@ -50,12 +51,20 @@ trait OAuth_App_Integration {
 	 * @return array
 	 */
 	protected function handle_oauth_init( $data, $manager ) {
+		// Build OAuth callback URL using settings page URL with callback parameter.
+		$callback_url = $this->get_settings_page_url(
+			array(
+				$manager->get_oauth_callback_param() => '1',
+			)
+		);
+
 		// Build the args for the OAuth request.
 		$args = array(
 			'action'              => $this->oauth_action,
 			'nonce'               => $manager->get_oauth_key( $this->get_id() ),
 			'plugin_ver'          => AUTOMATOR_PLUGIN_VERSION,
-			$this->redirect_param => rawurlencode( $manager->get_oauth_callback_url( $this->get_id() ) ),
+			'license'             => Api_Server::get_license_key(),
+			$this->redirect_param => rawurlencode( $callback_url ),
 		);
 
 		// Allow integrations to filter their OAuth args ( Example : Discord server ID )
@@ -88,8 +97,8 @@ trait OAuth_App_Integration {
 
 		try {
 			if ( empty( $credentials ) ) {
-				// Handle error cases - check for specific error parameters
-				$error_params = array( 'error', 'connect', 'auth_error' );
+				// Handle error cases - check for specific error parameters.
+				$error_params = array( 'error', 'connect', 'auth_error', $this->error_param );
 				foreach ( $error_params as $param ) {
 					if ( automator_filter_has_var( $param ) ) {
 						$error_message = automator_filter_input( $param );
@@ -98,13 +107,13 @@ trait OAuth_App_Integration {
 					}
 				}
 
-				// Generic error if no specific error parameter found
+				// Generic error if no specific error parameter found.
 				$error_message = esc_html_x( 'Invalid response, please try again.', 'Integration settings', 'uncanny-automator' );
 				$this->register_oauth_error_alert( $error_message );
 				throw new Exception( $error_message );
 			}
 
-			// Validate integration-specific credentials
+			// Validate integration-specific credentials.
 			$credentials = $this->validate_integration_credentials( $credentials );
 
 			// Store the credentials.
@@ -115,26 +124,26 @@ trait OAuth_App_Integration {
 				'redirect_url' => $this->get_settings_page_url(),
 			);
 
-			// Check if authorize_account method exists for account verification
+			// Check if authorize_account method exists for account verification.
 			if ( method_exists( $this, 'authorize_account' ) ) {
-				$response = $this->authorize_account( $credentials, $response );
+				$response = $this->authorize_account( $response, $credentials );
 			}
 
 			// Register success alert.
 			$this->register_oauth_success_alert( $credentials );
 
-			// Return success response
+			// Return success response.
 			return $response;
 
 		} catch ( Exception $e ) {
-			// Re-throw for REST manager to handle
+			// Re-throw for REST manager to handle.
 			throw $e;
 		}
 	}
 
 	/**
-	 * Validate integration-specific credentials
-	 * Override this in the integration class to add custom validation
+	 * Validate integration-specific credentials.
+	 * Override this in the integration class to add custom validation.
 	 *
 	 * @param array $credentials
 	 * @return array
@@ -147,7 +156,7 @@ trait OAuth_App_Integration {
 	}
 
 	/**
-	 * Validate vault signature
+	 * Validate vault signature.
 	 *
 	 * @param array $credentials
 	 * @return void
@@ -162,7 +171,7 @@ trait OAuth_App_Integration {
 	}
 
 	/**
-	 * Register success message alert
+	 * Register success message alert.
 	 * - override this in the integration class to provide custom content.
 	 *
 	 * @param array $credentials
@@ -174,7 +183,7 @@ trait OAuth_App_Integration {
 	}
 
 	/**
-	 * Register error message alert
+	 * Register error message alert.
 	 * - override this in the integration class to provide custom content.
 	 *
 	 * @return void
@@ -184,8 +193,8 @@ trait OAuth_App_Integration {
 	}
 
 	/**
-	 * Store credentials
-	 * This method satisfies the App_Integration_Settings abstract class requirement
+	 * Store credentials.
+	 * This method satisfies the App_Integration_Settings abstract class requirement.
 	 *
 	 * @param array $credentials
 	 * @return void
@@ -220,24 +229,26 @@ trait OAuth_App_Integration {
 	}
 
 	/**
-	 * Display - Output OAuth connect button
+	 * Display - Output OAuth connect button.
 	 *
 	 * @param string $label
-	 * @param array $url_args
+	 * @param array $button_args
 	 *
 	 * @return void - Outputs HTML directly
 	 */
-	public function output_oauth_connect_button( $label = '', $url_args = array() ) {
+	public function output_oauth_connect_button( $label = '', $button_args = array() ) {
 		$label = empty( $label )
 			? $this->get_connect_button_label()
 			: $label;
 
+		$default_args = array(
+			'color' => 'primary',
+		);
+
 		$this->output_action_button(
 			'oauth_init',
 			$label,
-			array(
-				'color' => 'primary',
-			)
+			wp_parse_args( $button_args, $default_args )
 		);
 	}
 }

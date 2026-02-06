@@ -5,17 +5,18 @@ namespace Uncanny_Automator\Integrations\Stripe;
  * Class Subscription_Cancelled
  *
  * @package Uncanny_Automator
+ *
+ * @property Stripe_App_Helpers $helpers
+ * @property Stripe_Api_Caller $api
  */
-class Subscription_Cancelled extends \Uncanny_Automator\Recipe\Trigger {
-
-	protected $helpers;
+class Subscription_Cancelled extends \Uncanny_Automator\Recipe\App_Trigger {
 
 	/**
 	 * Trigger code.
 	 *
 	 * @var string
 	 */
-	const TRIGGER_CODE = 'SUBSCRIPTION_CANCELLED';
+	const TRIGGER_CODE = 'SUB_CANCELLED';
 
 	/**
 	 * Define and register the trigger by pushing it into the Automator object
@@ -23,11 +24,11 @@ class Subscription_Cancelled extends \Uncanny_Automator\Recipe\Trigger {
 
 	public function setup_trigger() {
 
-		$this->helpers = array_shift( $this->dependencies );
-
 		$this->set_integration( 'STRIPE' );
 
 		$this->set_trigger_code( self::TRIGGER_CODE );
+
+		$this->set_trigger_meta( 'PRICE_ID' );
 
 		$this->set_is_login_required( false );
 
@@ -35,23 +36,73 @@ class Subscription_Cancelled extends \Uncanny_Automator\Recipe\Trigger {
 
 		$this->set_support_link( Automator()->get_author_support_link( $this->trigger_code, 'integration/stripe/' ) );
 
-		$this->set_sentence(
-			sprintf(
-			/* Translators: Trigger sentence */
-				esc_attr__( 'A subscription is cancelled', 'uncanny-automator' ),
-				$this->get_trigger_meta()
-			)
-		);
+		// translators: %1$s is the subscription product name
+		$this->set_sentence( sprintf( esc_html_x( '{{A subscription:%1$s}} is cancelled', 'Stripe', 'uncanny-automator' ), $this->get_trigger_meta() ) );
 
 		// Non-active state sentence to show
-
-		$this->set_readable_sentence( esc_attr__( 'A subscription is cancelled', 'uncanny-automator' ) );
+		$this->set_readable_sentence( esc_html_x( '{{A subscription}} is cancelled', 'Stripe', 'uncanny-automator' ) );
 
 		// Which do_action() fires this trigger.
-		$this->add_action( Stripe_Webhook::INCOMING_WEBHOOK_ACTION );
+		$this->add_action( Stripe_Webhooks::INCOMING_WEBHOOK_ACTION );
 
 		$this->set_action_args_count( 1 );
 	}
+
+	/**
+	 * options
+	 *
+	 * @return array
+	 */
+	public function options() {
+
+		$prices = $this->api->get_prices_options( 'recurring' );
+
+		array_unshift(
+			$prices,
+			array(
+				'text'  => esc_html_x( 'Any', 'Stripe', 'uncanny-automator' ),
+				'value' => '-1',
+			)
+		);
+
+		$products = array(
+			'option_code' => $this->get_trigger_meta(),
+			'label'       => esc_html_x( 'Price', 'Stripe', 'uncanny-automator' ),
+			'input_type'  => 'select',
+			'required'    => true,
+			'read_only'   => false,
+			'options'     => $prices,
+		);
+
+		$metadata = array(
+			'input_type'        => 'repeater',
+			'option_code'       => 'METADATA',
+			'label'             => esc_html_x( 'Extract subscription metadata', 'Stripe', 'uncanny-automator' ),
+			'relevant_tokens'   => array(),
+			'required'          => false,
+			'fields'            => array(
+				array(
+					'input_type'      => 'text',
+					'option_code'     => 'KEY',
+					'label'           => esc_html_x( 'Metadata key', 'Stripe', 'uncanny-automator' ),
+					'supports_tokens' => true,
+					'required'        => false,
+					'placeholder'     => esc_html_x( 'product', 'Stripe', 'uncanny-automator' ),
+					'description'     => sprintf( '<i>%s</i>', esc_html_x( 'Separate keys with / to build nested data.', 'Stripe', 'uncanny-automator' ) ),
+				),
+			),
+			/* translators: Non-personal infinitive verb */
+			'add_row_button'    => esc_html_x( 'Add a key', 'Stripe', 'uncanny-automator' ),
+			/* translators: Non-personal infinitive verb */
+			'remove_row_button' => esc_html_x( 'Remove key', 'Stripe', 'uncanny-automator' ),
+		);
+
+		return array(
+			$products,
+			$metadata,
+		);
+	}
+
 
 	/**
 	 * Returns the trigger's tokens.
@@ -61,58 +112,38 @@ class Subscription_Cancelled extends \Uncanny_Automator\Recipe\Trigger {
 
 	public function define_tokens( $trigger, $tokens ) {
 
-		$tokens[] = array(
-			'tokenId'   => 'ID',
-			'tokenName' => _x( 'ID', 'Stripe', 'uncanny-automator' ),
-			'tokenType' => 'string',
-		);
+		$price_tokens = $this->helpers->tokens->price_tokens();
 
-		$tokens[] = array(
-			'tokenId'   => 'PRICE_ID',
-			'tokenName' => _x( 'Price ID', 'Stripe', 'uncanny-automator' ),
-			'tokenType' => 'string',
-		);
+		// Remove the first element, which is PRICE_ID because it will be define by the framework
+		array_shift( $price_tokens );
 
-		$tokens[] = array(
-			'tokenId'   => 'AMOUNT',
-			'tokenName' => _x( 'Amount', 'Stripe', 'uncanny-automator' ),
-			'tokenType' => 'int',
-		);
+		$product_tokens = $this->helpers->tokens->product_tokens();
 
-		$tokens[] = array(
-			'tokenId'   => 'CURRENCY',
-			'tokenName' => _x( 'Currency', 'Stripe', 'uncanny-automator' ),
-			'tokenType' => 'string',
-		);
+		$customer_tokens = $this->helpers->tokens->customer_tokens();
 
-		$tokens[] = array(
-			'tokenId'   => 'PLAN_NAME',
-			'tokenName' => _x( 'Plan name', 'Stripe', 'uncanny-automator' ),
-			'tokenType' => 'string',
-		);
+		$invoice_tokens = $this->helpers->tokens->invoice_tokens();
 
-		$tokens[] = array(
-			'tokenId'   => 'PRODUCT_ID',
-			'tokenName' => _x( 'Product ID', 'Stripe', 'uncanny-automator' ),
-			'tokenType' => 'string',
-		);
+		$metadata_tokens = array();
 
-		$tokens[] = array(
-			'tokenId'   => 'CUSTOMER_ID',
-			'tokenName' => _x( 'Customer ID', 'Stripe', 'uncanny-automator' ),
-			'tokenType' => 'string',
-		);
+		if ( ! empty( $trigger['meta']['METADATA'] ) ) {
+			$metadata_keys   = json_decode( $trigger['meta']['METADATA'], true );
+			$metadata_tokens = $this->helpers->tokens->custom_data_tokens( $metadata_keys, 'METADATA', esc_html_x( 'Metadata key: ', 'Stripe', 'uncanny-automator' ) );
+		}
 
-		$tokens[] = array(
-			'tokenId'   => 'INTERVAL',
-			'tokenName' => _x( 'Interval', 'Stripe', 'uncanny-automator' ),
-			'tokenType' => 'string',
-		);
+		$custom_fields_tokens = array();
 
-		$tokens[] = array(
-			'tokenId'   => 'LATEST_INVOICE',
-			'tokenName' => _x( 'Latest invoice', 'Stripe', 'uncanny-automator' ),
-			'tokenType' => 'string',
+		if ( ! empty( $trigger['meta']['CUSTOM_FIELDS'] ) ) {
+			$custom_fields        = json_decode( $trigger['meta']['CUSTOM_FIELDS'], true );
+			$custom_fields_tokens = $this->helpers->tokens->custom_data_tokens( $custom_fields, 'CUSTOM_FIELD', esc_html_x( 'Custom field key: ', 'Stripe', 'uncanny-automator' ) );
+		}
+
+		$tokens = array_merge(
+			$price_tokens,
+			$product_tokens,
+			$customer_tokens,
+			$invoice_tokens,
+			$metadata_tokens,
+			$custom_fields_tokens
 		);
 
 		return $tokens;
@@ -135,7 +166,13 @@ class Subscription_Cancelled extends \Uncanny_Automator\Recipe\Trigger {
 			return false;
 		}
 
-		return true;
+		$selected_price = $trigger['meta'][ $this->get_trigger_meta() ];
+		$subscription   = $event['data']['object'];
+
+		// Use helper method to check if subscription contains the selected price
+		// This method supports both modern 'price' and legacy 'plan' objects
+		// and handles multi-item subscriptions
+		return $this->helpers->subscription_contains_price( $subscription, $selected_price );
 	}
 
 	/**
@@ -151,20 +188,33 @@ class Subscription_Cancelled extends \Uncanny_Automator\Recipe\Trigger {
 
 		list( $event ) = $hook_args;
 
-		$subscription = $event['data']['object'];
+		$subscription_id = $event['data']['object']['id'];
 
-		$plan = $subscription['plan'];
+		$response = $this->api->get_subscription( $subscription_id );
 
-		$tokens = array(
-			'ID'             => empty( $subscription['id'] ) ? '' : $subscription['id'],
-			'PRICE_ID'       => empty( $plan['id'] ) ? '' : $plan['id'],
-			'AMOUNT'         => empty( $plan['amount'] ) ? '' : $this->helpers->format_amount( $plan['amount'] ),
-			'CURRENCY'       => empty( $plan['currency'] ) ? '' : $plan['currency'],
-			'PLAN_NAME'      => empty( $plan['nickname'] ) ? '' : $plan['nickname'],
-			'PRODUCT_ID'     => empty( $plan['product'] ) ? '' : $plan['product'],
-			'CUSTOMER_ID'    => empty( $subscription['customer'] ) ? '' : $subscription['customer'],
-			'INTERVAL'       => empty( $plan['interval'] ) ? '' : $plan['interval'],
-			'LATEST_INVOICE' => empty( $subscription['latest_invoice'] ) ? '' : $subscription['latest_invoice'],
+		$subscription = $response['data']['subscription'];
+
+		$price   = $subscription['items']['data'][0]['price'];
+		$product = $subscription['plan']['product'];
+		$invoice = $subscription['latest_invoice'];
+
+		$price_tokens   = $this->helpers->tokens->hydrate_price_tokens( $price );
+		$product_tokens = $this->helpers->tokens->hydrate_product_tokens( $product );
+		$invoice_tokens = $this->helpers->tokens->hydrate_invoice_tokens( $invoice );
+
+		$customer = $subscription['customer'];
+
+		$customer_tokens = $this->helpers->tokens->hydrate_customer_tokens( $customer );
+
+		$metadata_keys   = json_decode( $trigger['meta']['METADATA'], true );
+		$metadata_tokens = $this->helpers->tokens->hydrate_metadata_tokens( $metadata_keys, $subscription, 'METADATA' );
+
+		$tokens = array_merge(
+			$price_tokens,
+			$product_tokens,
+			$customer_tokens,
+			$invoice_tokens,
+			$metadata_tokens
 		);
 
 		return $tokens;

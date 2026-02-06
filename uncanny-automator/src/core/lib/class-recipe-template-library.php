@@ -166,6 +166,7 @@ class Recipe_Template_Library {
 			'is_pro'             => 'is_pro',
 			'is_elite'           => 'is_elite',
 			'is_built_in'        => 'is_built_in',
+			'is_third_party'     => 'is_third_party',
 			'short_description'  => 'short_description',
 			'external_permalink' => 'external_permalink',
 			'name'               => 'name',
@@ -333,7 +334,7 @@ class Recipe_Template_Library {
 		}
 
 		// Check if user has manage options capability.
-		return current_user_can( 'manage_options' );
+		return current_user_can( automator_get_capability() );
 	}
 
 	/**

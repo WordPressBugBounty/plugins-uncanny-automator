@@ -4,15 +4,11 @@ namespace Uncanny_Automator\Integrations\Bluesky;
 
 /**
  * Bluesky - Create Post
+ *
+ * @property Bluesky_App_Helpers $helpers
+ * @property Bluesky_Api_Caller $api
  */
-class BLUESKY_CREATE_POST extends \Uncanny_Automator\Recipe\Action {
-
-	/**
-	 * Helpers
-	 *
-	 * @var Bluesky_Helpers
-	 */
-	protected $helpers;
+class BLUESKY_CREATE_POST extends \Uncanny_Automator\Recipe\App_Action {
 
 	/**
 	 * Prefix
@@ -27,15 +23,13 @@ class BLUESKY_CREATE_POST extends \Uncanny_Automator\Recipe\Action {
 	 * @return void
 	 */
 	protected function setup_action() {
-
-		$this->helpers = array_shift( $this->dependencies );
-
 		$this->set_integration( 'BLUESKY' );
 		$this->set_action_code( $this->prefix . '_CODE' );
 		$this->set_action_meta( $this->prefix . '_META' );
 		$this->set_is_pro( false );
 		$this->set_support_link( Automator()->get_author_support_link( $this->action_code, 'knowledge-base/bluesky/' ) );
 		$this->set_requires_user( false );
+		$this->set_wpautop( false );
 		$this->set_sentence(
 			sprintf(
 				// translators: the text "a post" placeholder.
@@ -55,16 +49,17 @@ class BLUESKY_CREATE_POST extends \Uncanny_Automator\Recipe\Action {
 
 		// Main post.
 		$post_field = array(
-			'option_code'     => $this->get_action_meta(),
-			'label'           => esc_html_x( 'Post', 'Bluesky', 'uncanny-automator' ),
-			'input_type'      => 'textarea',
-			'required'        => true,
-			'description'     => esc_html_x(
+			'option_code'       => $this->get_action_meta(),
+			'label'             => esc_html_x( 'Post', 'Bluesky', 'uncanny-automator' ),
+			'input_type'        => 'textarea',
+			'supports_markdown' => true,
+			'required'          => true,
+			'description'       => esc_html_x(
 				'Messages posted to Bluesky have a 300 character limit. URLs count as 20 characters regardless of length, and URL protocols (http://, https://) are not counted. You may use links (e.g. https://example.com), mentions (e.g. @user.bsky.social), and hashtags (e.g. #WordPress). HTML is not supported.',
 				'Bluesky',
 				'uncanny-automator'
 			),
-			'relevant_tokens' => array(),
+			'relevant_tokens'   => array(),
 		);
 
 		// Media embed options.
@@ -202,13 +197,13 @@ class BLUESKY_CREATE_POST extends \Uncanny_Automator\Recipe\Action {
 
 		// Format the post text and any selected media into a record for the Bluesky API.
 		$record = $this->helpers->get_formatted_post_record( $text, $media );
-		$args   = array(
+		$body   = array(
 			'action' => 'create_post',
 			'record' => wp_json_encode( $record ),
 		);
 
 		// Create the post.
-		$response = $this->helpers->api()->api_request( $args, $action_data );
+		$response = $this->api->api_request( $body, $action_data );
 		$data     = isset( $response['data'] ) ? $response['data'] : array();
 		$url      = isset( $data['uri'] ) ? $data['uri'] : '';
 		$status   = isset( $data['validationStatus'] ) ? $data['validationStatus'] : ''; // valid, unknown

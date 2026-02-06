@@ -176,14 +176,8 @@ trait Premium_Integration_Rest_Processing {
 		 */
 		$response = apply_filters( 'automator_before_disconnect_' . $this->get_id(), $response, $data, $this );
 
-		// Get all possible options that could have been registered
-		$all_options = $this->get_all_registered_options();
-		if ( ! empty( $all_options ) ) {
-			// Clear all registered options
-			foreach ( $all_options as $option_name => $args ) {
-				automator_delete_option( $option_name );
-			}
-		}
+		// Delete all registered options.
+		$this->delete_all_registered_options();
 
 		// Check if the helper class has delete_credentials method
 		if ( method_exists( $this->helpers, 'delete_credentials' ) ) {
@@ -247,6 +241,20 @@ trait Premium_Integration_Rest_Processing {
 	protected function after_disconnect( $response = array(), $data = array() ) {
 		// Default implementation returns response unchanged
 		return $response;
+	}
+
+	/**
+	 * Delete all registered options
+	 *
+	 * @return void
+	 */
+	protected function delete_all_registered_options() {
+		$all_options = $this->get_all_registered_options();
+		if ( ! empty( $all_options ) ) {
+			foreach ( $all_options as $option_name => $args ) {
+				automator_delete_option( $option_name );
+			}
+		}
 	}
 
 	/**
@@ -314,5 +322,38 @@ trait Premium_Integration_Rest_Processing {
 	protected function after_save_settings( $response = array(), $options = array() ) {
 		// Default implementation returns response unchanged
 		return $response;
+	}
+
+	/**
+	 * Delete all option data matching the given prefix.
+	 *
+	 * Performs a bulk DELETE on the uap_options table for all option names
+	 * matching the supplied prefix (e.g. 'automator_mailchimp_%').
+	 *
+	 * This will remove all options under the prefix, including credentials and account data.
+	 * Use in after_disconnect() to ensure credentials remain available for any API cleanup
+	 * operations that run during the disconnect flow (e.g. external vault disconnection).
+	 *
+	 * Example usage:
+	 * ```php
+	 * protected function after_disconnect( $response = array(), $data = array() ) {
+	 *     $this->delete_option_data( $this->helpers->get_option_prefix() );
+	 *     return $response;
+	 * }
+	 * ```
+	 *
+	 * @param string $prefix The option name prefix to match (e.g. 'automator_mailchimp_').
+	 *
+	 * @return int|false The number of rows deleted, or false on error.
+	 */
+	protected function delete_option_data( $prefix ) {
+		global $wpdb;
+
+		return $wpdb->query(
+			$wpdb->prepare(
+				"DELETE FROM {$wpdb->prefix}uap_options WHERE option_name LIKE %s",
+				$wpdb->esc_like( $prefix ) . '%'
+			)
+		);
 	}
 }

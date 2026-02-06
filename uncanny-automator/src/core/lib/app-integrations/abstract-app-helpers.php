@@ -12,6 +12,9 @@ use Exception;
  */
 abstract class App_Helpers {
 
+	// Option data: prefix, key building, cached get/save, and common AJAX helpers.
+	use App_Helpers_Option_Data;
+
 	/**
 	 * Integration.
 	 *
@@ -85,11 +88,17 @@ abstract class App_Helpers {
 		$this->set_api_endpoint( $config['api_endpoint'] ?? '' );
 		$this->set_settings_id( $config['settings_id'] ?? '' );
 
+		// Normalize settings ID for option names (convert dashes to underscores).
+		$normalized_settings_id = str_replace( '-', '_', $this->get_settings_id() );
+
+		// Set the option prefix for standardized option key building.
+		$this->set_option_prefix( sprintf( 'automator_%s_', $normalized_settings_id ) );
+
 		// Set a generated credentials option name.
-		$this->set_credentials_option_name( sprintf( 'automator_%s_credentials', $this->get_settings_id() ) );
+		$this->set_credentials_option_name( $this->get_option_key( 'credentials' ) );
 
 		// Set a generated account option name.
-		$this->set_account_option_name( sprintf( 'automator_%s_account', $this->get_settings_id() ) );
+		$this->set_account_option_name( $this->get_option_key( 'account' ) );
 
 		// Optional method to set additional properties.
 		$this->set_properties();
@@ -402,21 +411,6 @@ abstract class App_Helpers {
 	////////////////////////////////////////////////////////////
 	// Recipe builder methods
 	////////////////////////////////////////////////////////////
-
-	/**
-	 * Check if the request is an AJAX refresh.
-	 * - Used for handling AJAX requests from Recipe Builder when requesting data for options.
-	 * - This is a common pattern when saving the option data to uap_options
-	 * - When this refresh context is detected the user is attempting to retrieve updated data for the integration.
-	 *
-	 * @return bool
-	 */
-	public function is_ajax_refresh() {
-		$context = automator_filter_has_var( 'context', INPUT_POST )
-			? automator_filter_input( 'context', INPUT_POST )
-			: '';
-		return 'refresh-button' === $context;
-	}
 
 	/**
 	 * Check if the value is a custom value text.

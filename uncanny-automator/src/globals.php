@@ -37,6 +37,20 @@ if ( ! defined( 'AUTOMATOR_CONFIGURATION_PRIORITY' ) ) {
 	define( 'AUTOMATOR_CONFIGURATION_PRIORITY', 10 );
 }
 
+if ( ! defined( 'AUTOMATOR_CONFIGURATION_PRIORITY_TRIGGER_ENGINE' ) ) {
+	/**
+	 * Automator Configuration priority
+	 */
+	define( 'AUTOMATOR_CONFIGURATION_PRIORITY_TRIGGER_ENGINE', 1 );
+}
+
+if ( ! defined( 'AUTOMATOR_RECIPE_PARTS_PRIORITY_TRIGGER_ENGINE' ) ) {
+	/**
+	 * Automator Configuration priority
+	 */
+	define( 'AUTOMATOR_RECIPE_PARTS_PRIORITY_TRIGGER_ENGINE', 30 );
+}
+
 if ( ! defined( 'AUTOMATOR_LOAD_INTEGRATIONS_PRIORITY' ) ) {
 	/**
 	 * Automator trigger load priority
@@ -205,4 +219,13 @@ if ( ! defined( 'AUTOMATOR_FASTLY_SERVICE_ID' ) ) {
 	 *
 	 */
 	define( 'AUTOMATOR_FASTLY_SERVICE_ID', '' );
+}
+
+if ( ! defined( 'AUTOMATOR_LLM_CREDITS_URL' ) ) {
+	/**
+	 * URL to purchase LLM/Agent credits.
+	 *
+	 * @since 7.0.0
+	 */
+	define( 'AUTOMATOR_LLM_CREDITS_URL', 'https://automatorplugin.com/get-agent-credits/?utm_source=plugin&utm_medium=automator&utm_campaign=llm_credits' );
 }

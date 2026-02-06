@@ -256,7 +256,7 @@ class Admin_Menu {
 	 */
 	public function register_options_menu_page() {
 
-		if ( ! current_user_can( apply_filters( 'automator_admin_menu_capability', 'manage_options' ) ) ) { // phpcs:ignore WordPress.WP.Capabilities.Undetermined
+		if ( ! current_user_can( automator_get_capability() ) ) {
 			remove_menu_page( 'edit.php?post_type=uo-recipe' );
 		}
 
@@ -273,7 +273,7 @@ class Admin_Menu {
 			$parent_slug,
 			esc_attr__( 'Dashboard', 'uncanny-automator' ),
 			esc_attr__( 'Dashboard', 'uncanny-automator' ),
-			'manage_options',
+			automator_get_capability(),
 			'uncanny-automator-dashboard',
 			array(
 				$this,
@@ -287,7 +287,7 @@ class Admin_Menu {
 			$parent_slug,
 			esc_attr__( 'All integrations', 'uncanny-automator' ),
 			esc_attr__( 'All integrations', 'uncanny-automator' ),
-			'manage_options',
+			automator_get_capability(),
 			'uncanny-automator-integrations',
 			array(
 				$this,
@@ -300,7 +300,7 @@ class Admin_Menu {
 			$parent_slug_fake,
 			esc_attr__( 'Recipe activity details', 'uncanny-automator' ),
 			esc_attr__( 'Recipe activity details', 'uncanny-automator' ),
-			'manage_options',
+			automator_get_capability(),
 			'uncanny-automator-recipe-activity-details',
 			$function
 		);
@@ -316,7 +316,7 @@ class Admin_Menu {
 			/* translators: 1. Trademarked term */
 			esc_html__( 'App integrations', 'uncanny-automator' ),
 			esc_html__( 'App integrations', 'uncanny-automator' ),
-			'manage_options',
+			automator_get_capability(),
 			admin_url( 'edit.php?post_type=uo-recipe&page=uncanny-automator-config&tab=premium-integrations' )
 		);
 	}
@@ -329,7 +329,7 @@ class Admin_Menu {
 		if ( has_filter( 'uap_settings_tabs' ) ) {
 			/* translators: 1. Trademarked term */
 			$page_title               = sprintf( esc_attr__( '%1$s settings', 'uncanny-automator' ), 'Uncanny Automator' );
-			$capability               = 'manage_options';
+			$capability               = automator_get_capability();
 			$menu_title               = esc_attr__( 'Legacy settings', 'uncanny-automator' );
 			$menu_slug                = 'uncanny-automator-settings';
 			$this->settings_page_slug = $menu_slug;
@@ -338,7 +338,7 @@ class Admin_Menu {
 				'options_menu_settings_page_output',
 			);
 
-			add_submenu_page( 'edit.php?post_type=uo-recipe', $page_title, $menu_title, $capability, $menu_slug, $function ); // phpcs:ignore WordPress.WP.Capabilities.Undetermined
+			add_submenu_page( 'edit.php?post_type=uo-recipe', $page_title, $menu_title, $capability, $menu_slug, $function );
 		}
 	}
 
@@ -514,7 +514,7 @@ class Admin_Menu {
 					array(
 						'title' => esc_html__( 'PHP version', 'uncanny-automator' ),
 						'url' => 'https://automatorplugin.com/knowledge-base/php-version/?utm_source=uncanny_automator&utm_medium=dashboard&utm_content=kb_key_resources',
-					)
+					),
 				),
 			),
 			array(
@@ -914,7 +914,7 @@ class Admin_Menu {
 						'url' => 'https://automatorplugin.com/knowledge-base/woocommerce/?utm_source=uncanny_automator&utm_medium=dashboard&utm_content=kb_integration_faq',
 					),
 				),
-			)
+			),
 		);
 
 		$faq_items = array(
@@ -1201,7 +1201,7 @@ class Admin_Menu {
 	private function validate_credentials( $nonce = '' ) {
 
 		// Validate request.
-		if ( ! current_user_can( 'manage_options' ) ) {
+		if ( ! current_user_can( automator_get_admin_capability() ) ) {
 
 			wp_die( 'Error: Insufficient privilege - The current logged in user does not have administrative access to execute this action.' );
 
@@ -1363,7 +1363,7 @@ class Admin_Menu {
 				'localize' => array(
 					'UncannyAutomatorBackend' => $this->get_js_backend_inline_data( $hook ),
 					'UncannyAutomator' => array(),
-				)
+				),
 			)
 		);
 	}
@@ -1437,8 +1437,8 @@ class Admin_Menu {
 							'all_recipes'        => admin_url( 'edit.php?post_type=uo-recipe' ),
 							'tools'              => admin_url( 'edit.php?post_type=uo-recipe&page=uncanny-automator-tools' ),
 							'manage_license'     => admin_url( 'edit.php?post_type=uo-recipe&page=uncanny-automator-config&tab=general&general=license' ),
-						)
-					)
+						),
+					),
 				),
 			),
 		);
@@ -1716,6 +1716,7 @@ class Admin_Menu {
 				'is_elite'           => isset( $integration['is_elite_integration'] ) ? $integration['is_elite_integration'] : false,
 				'is_built_in'        => $integration['is_app_integration'],
 				'is_addon'           => $integration['is_automator_addon'],
+				'is_third_party'     => $integration['is_third_party_integration'],
 				'is_installed'       => $this->is_installed( $integration_id ),
 				'short_description'  => $integration['short_description'],
 				'icon_url'           => $integration['integration_icon'],
