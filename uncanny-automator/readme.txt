@@ -4,7 +4,7 @@ Tags: automation, google sheets, openai, learndash, webhooks
 Requires at least: 5.8
 Tested up to: 6.9.4
 Requires PHP: 7.4
-Stable tag: 7.2.1
+Stable tag: 7.2.2
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -418,6 +418,18 @@ We're a Toronto-based WordPress company specializing in elearning and automation
 
 == Changelog ==
 
+= 7.2.2 [2026-04-20] =
+
+**Fixed:**
+
+* Gravity Forms - Triggers - Hidden fields now generate tokens. #7153
+* RSS - Process an RSS feed – Media thumbnails found their way; URL tokens resolved. #7191
+* Repeater fields with Uncanny Agent - Fixed an issue where meta unslashing was corrupting repeater JSON data. Data now stays intact. #7166
+
+**Under the hood:**
+
+* Core – Windows/IIS path drama solved; legacy integrations breathe easy again. #7194
+
 = 7.2.1 [2026-04-09] =
 
 **Fixed:**
@@ -429,7 +441,7 @@ We're a Toronto-based WordPress company specializing in elearning and automation
 * Legacy Helper chaining - Added a defensive code guard to method and property handling. #7125
 * Switched to the new framework:
     * Facebook Lead Ads #6642
-    * Facebook Pages #6563
+    * Facebook Page #6563
     * Instagram #6563
     * Ontraport #6303
     * Trello #6831
