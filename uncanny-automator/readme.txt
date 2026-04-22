@@ -4,7 +4,7 @@ Tags: automation, google sheets, openai, learndash, webhooks
 Requires at least: 5.8
 Tested up to: 6.9.4
 Requires PHP: 7.4
-Stable tag: 7.2.2
+Stable tag: 7.2.2.1
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -417,6 +417,14 @@ We're a Toronto-based WordPress company specializing in elearning and automation
 8. Create powerful recipes that just work, all with one plugin
 
 == Changelog ==
+
+= 7.2.2.1 [2026-04-22] =
+
+**Fixed:**
+
+* MemberPress Courses – Banished the "Undefined array key 'ID'" gremlin. #7204
+* Uncanny Agent - Resolves authentication conflicts between Agent REST endpoints and JWT apps. #7202
+* Token Parser – Banished undefined "ID" warnings from empty `$trigger_data`. #7206
 
 = 7.2.2 [2026-04-20] =
 
