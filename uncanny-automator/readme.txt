@@ -4,7 +4,7 @@ Tags: automation, google sheets, openai, learndash, webhooks
 Requires at least: 5.8
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 7.3.1.3
+Stable tag: 7.3.1.4
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -418,6 +418,17 @@ We're a Toronto-based WordPress company specializing in elearning and automation
 8. Create powerful recipes that just work, all with one plugin
 
 == Changelog ==
+
+= 7.3.1.4 [2026-06-22] =
+
+**Updated:**
+
+* Google Sheets, Calendar and Gemini icons updated #7798
+
+**Fixed:**
+
+* Hardened WP Event Manager, FluentCRM, Gravity Forms, and WS Form Lite trigger token handling against PHP Object Injection by safely handling user-submitted values #7939
+* Instagram - Catch `Throwable` instead of only `Exception` when publishing posts #7940
 
 = 7.3.1.3 [2026-06-16] =
 
