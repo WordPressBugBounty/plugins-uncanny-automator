@@ -46,6 +46,10 @@ class BREVO_ADD_UPDATE_CONTACT extends \Uncanny_Automator\Recipe\App_Action {
 		$this->set_sentence( sprintf( esc_attr_x( 'Create or update {{a contact:%1$s}}', 'Brevo', 'uncanny-automator' ), $this->get_action_meta() ) );
 		$this->set_readable_sentence( esc_attr_x( 'Create or update {{a contact}}', 'Brevo', 'uncanny-automator' ) );
 		$this->set_background_processing( true );
+		// Superseded by BREVO_CREATE_OR_UPDATE_CONTACT, which uses the transposed
+		// repeater so non-English Brevo accounts can map their localized default
+		// attributes (VORNAME / PRENOM / NOM / ...) directly.
+		$this->set_is_deprecated( true );
 	}
 
 	/**
@@ -135,8 +139,7 @@ class BREVO_ADD_UPDATE_CONTACT extends \Uncanny_Automator\Recipe\App_Action {
 			'label'                 => esc_html_x( 'Double-opt-in template', 'Brevo', 'uncanny-automator' ),
 			'input_type'            => 'select',
 			'required'              => false,
-			'is_ajax'               => true,
-			'endpoint'              => 'automator_brevo_get_templates',
+			'remote_data'           => $this->helpers->remote_data_load_config( 'templates' ),
 			'supports_custom_value' => false,
 			'description'           => esc_html_x( 'Template is required when using double-opt-in', 'Brevo', 'uncanny-automator' ),
 		);
@@ -146,8 +149,7 @@ class BREVO_ADD_UPDATE_CONTACT extends \Uncanny_Automator\Recipe\App_Action {
 			'label'                 => esc_html_x( 'Double-opt-in list', 'Brevo', 'uncanny-automator' ),
 			'input_type'            => 'select',
 			'required'              => false,
-			'is_ajax'               => true,
-			'endpoint'              => 'automator_brevo_get_lists',
+			'remote_data'           => $this->helpers->remote_data_load_config( 'lists' ),
 			'supports_custom_value' => false,
 			'description'           => esc_html_x( 'Double-opt-in list is required when using double-opt-in', 'Brevo', 'uncanny-automator' ),
 		);
