@@ -7,7 +7,6 @@ namespace UncannyPageBuilder\Presentation\Api;
 use UncannyPageBuilder\Api\ApiResponse;
 use UncannyPageBuilder\Api\PermissionChecker;
 use UncannyPageBuilder\Application\Editor\EditorStateService;
-use UncannyPageBuilder\Application\Observability\FailureReporterInterface;
 use UncannyPageBuilder\Application\SectionService;
 use UncannyPageBuilder\Domain\ErrorMessage;
 
@@ -17,7 +16,6 @@ final class EditorStateController
         private readonly EditorStateService $editorStateService,
         private readonly SectionService $sectionService,
         private readonly PermissionChecker $permissions,
-        private readonly ?FailureReporterInterface $failureReporter = null,
     ) {}
 
     public function registerRoutes(): void
@@ -31,62 +29,44 @@ final class EditorStateController
 
     public function read(\WP_REST_Request $request): \WP_REST_Response|\WP_Error
     {
-        $ownerId = 0;
+        $pageId = absint($request->get_param('page_id'));
+        $globalPartId = absint($request->get_param('global_part_id'));
 
-        try {
-            $pageId = absint($request->get_param('page_id'));
-            $globalPartId = absint($request->get_param('global_part_id'));
-
-            if ($globalPartId > 0) {
-                $ownerId = $globalPartId;
-                if (!$this->permissions->canEditPost($globalPartId)) {
-                    return ApiResponse::error(ErrorMessage::GlobalPartEditForbidden);
-                }
-
-                $state = $this->editorStateService->buildForGlobalPart(
-                    $globalPartId,
-                    $this->capabilitiesFor($globalPartId),
-                );
-
-                if ($state === null) {
-                    return ApiResponse::error(ErrorMessage::PageNotFoundGeneric);
-                }
-
-                return ApiResponse::ok($state->toArray())->toResponse();
+        if ($globalPartId > 0) {
+            if (!$this->permissions->canEditPost($globalPartId)) {
+                return ApiResponse::error(ErrorMessage::GlobalPartEditForbidden);
             }
 
-            $ownerId = $pageId;
-            if ($pageId <= 0) {
-                return ApiResponse::error(ErrorMessage::MissingPageId);
-            }
-
-            if (!$this->permissions->canEditPage($pageId)) {
-                return ApiResponse::error(ErrorMessage::PageEditForbidden);
-            }
-
-            if (!$this->sectionService->isPageOwned($pageId)) {
-                return ApiResponse::error(ErrorMessage::PageNotOwned);
-            }
-
-            $state = $this->editorStateService->buildForPage(
-                $pageId,
-                $this->capabilitiesFor($pageId, true),
+            $state = $this->editorStateService->buildForGlobalPart(
+                $globalPartId,
+                $this->capabilitiesFor($globalPartId),
             );
 
-            return ApiResponse::ok($state->toArray())->toResponse();
-        } catch (\Throwable $failure) {
-            $this->recordFailure('editor state', $ownerId, 'read', $failure);
-            return ApiResponse::error(ErrorMessage::ControlInvokeFailed, ['retryable' => true]);
-        }
-    }
+            if ($state === null) {
+                return ApiResponse::error(ErrorMessage::PageNotFoundGeneric);
+            }
 
-    private function recordFailure(string $scope, int $ownerId, string $step, \Throwable $failure): void
-    {
-        try {
-            $this->failureReporter?->report($scope, $ownerId, $step, $failure);
-        } catch (\Throwable) {
-            // A report failure cannot change the controlled REST response.
+            return ApiResponse::ok($state->toArray())->toResponse();
         }
+
+        if ($pageId <= 0) {
+            return ApiResponse::error(ErrorMessage::MissingPageId);
+        }
+
+        if (!$this->permissions->canEditPage($pageId)) {
+            return ApiResponse::error(ErrorMessage::PageEditForbidden);
+        }
+
+        if (!$this->sectionService->isPageOwned($pageId)) {
+            return ApiResponse::error(ErrorMessage::PageNotOwned);
+        }
+
+        $state = $this->editorStateService->buildForPage(
+            $pageId,
+            $this->capabilitiesFor($pageId, true),
+        );
+
+        return ApiResponse::ok($state->toArray())->toResponse();
     }
 
     /** @return array{can_edit: bool, can_manage: bool, can_upload: bool, can_publish: bool} */

@@ -15,7 +15,6 @@ use UncannyPageBuilder\Domain\Concurrency\SourceGenerationStoreInterface;
 use UncannyPageBuilder\Domain\Exception\StaleSourceGenerationException;
 use UncannyPageBuilder\Domain\Export\StaticExportArtifact;
 use UncannyPageBuilder\Domain\Export\StaticPageExport;
-use UncannyPageBuilder\Domain\Export\StaticExportPurpose;
 use UncannyPageBuilder\Domain\Publishing\PageArtifactCandidate;
 use UncannyPageBuilder\Domain\Publishing\PagePublicationState;
 use UncannyPageBuilder\Domain\Publishing\PageSourceSnapshot;
@@ -101,7 +100,6 @@ final class BuildPageArtifact implements PageArtifactBuilderInterface
                 $pageId,
                 $details->title(),
                 $details->permalink(),
-                StaticExportPurpose::Publication,
             );
             $lastSnapshot = SourceGenerationSnapshot::fromDependencies($export->dependencies());
             if (!$lastSnapshot instanceof SourceGenerationSnapshot || $lastSnapshot->pageId() !== $pageId) {

@@ -34,16 +34,14 @@ final class PageSourceArchiveDownloadAction
         check_admin_referer(self::nonceAction($pageId));
         $postType = $pageId > 0 ? get_post_type($pageId) : null;
 
-        $isAuthorized = (bool) WordPressCallbackBoundary::valueOrDie(
-            'page.export.authorize',
-            fn (): bool => $pageId > 0
-                && is_string($postType)
-                && $this->supportsPostType->isSupported($postType)
-                && $this->allowedCapabilities->currentUserHasAllowedCapability()
-                && current_user_can('edit_post', $pageId)
-                && $this->pages->isOwnedPage($pageId),
-        );
-        if (!$isAuthorized) {
+        if (
+            $pageId <= 0
+            || !is_string($postType)
+            || !$this->supportsPostType->isSupported($postType)
+            || !$this->allowedCapabilities->currentUserHasAllowedCapability()
+            || !current_user_can('edit_post', $pageId)
+            || !$this->pages->isOwnedPage($pageId)
+        ) {
             wp_die(
                 esc_html_x("You don't have permission to export this Page Builder page.", 'Page Builder', 'uncanny-automator'),
                 403,
@@ -51,10 +49,7 @@ final class PageSourceArchiveDownloadAction
         }
 
         $token = is_string($_GET['artifact'] ?? null) ? (string) $_GET['artifact'] : '';
-        $artifact = WordPressCallbackBoundary::valueOrDie(
-            'page.export.artifact',
-            fn () => $this->artifacts->take($pageId, $token),
-        );
+        $artifact = $this->artifacts->take($pageId, $token);
         if ($artifact === null) {
             wp_die(
                 esc_html_x('This page export has expired. Export the page again and try again.', 'Page Builder', 'uncanny-automator'),
@@ -109,15 +104,7 @@ final class PageSourceArchiveDownloadAction
             ));
             $downloadError = !$responseStarted && !headers_sent();
         } finally {
-            try {
-                $this->artifacts->delete($artifact);
-            } catch (\Throwable $cleanupFailure) {
-                error_log(sprintf(
-                    '[Uncanny Page Builder] Page archive cleanup failed for page %d (%s).',
-                    $pageId,
-                    $cleanupFailure::class,
-                ));
-            }
+            $this->artifacts->delete($artifact);
         }
 
         if ($downloadError) {

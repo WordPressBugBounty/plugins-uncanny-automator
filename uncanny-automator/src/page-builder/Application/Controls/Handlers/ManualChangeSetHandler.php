@@ -253,7 +253,7 @@ final class ManualChangeSetHandler implements ControlHandlerInterface
                 $appliedDesignChanges = $designChanges;
                 $appliedContentChanges = $contentChanges;
             if ($hasSectionLayout) {
-                $sectionResult = $this->sections->saveManualLayout(
+                $sectionResult = $this->sections->restoreFromHistory(
                     $request->pageId(),
                     $sectionLayout,
                 );

@@ -19,7 +19,6 @@ use UncannyPageBuilder\Domain\Exception\HistorySnapshotConflictException;
 use UncannyPageBuilder\Domain\Exception\PageNotFoundException;
 use UncannyPageBuilder\Domain\Exception\SectionNotFoundException;
 use UncannyPageBuilder\Domain\Section\BindingTargetReference;
-use UncannyPageBuilder\Domain\Section\CopiedSectionIdentityRemapper;
 use UncannyPageBuilder\Domain\Section\HtmlCssProcessor;
 use UncannyPageBuilder\Domain\Section\LucideIconValidator;
 use UncannyPageBuilder\Domain\Section\Section;
@@ -96,12 +95,7 @@ final class SectionService implements SectionSourceWriter, SectionHistoryRestore
             $newSection->assignId($sectionId);
             $sections->replaceById($sectionId, $newSection);
         } else {
-            $sectionContent = CopiedSectionIdentityRemapper::remapCollisions(
-                SectionContent::fromArray($content),
-                $sections,
-                $pageId . ':' . $sections->count(),
-            );
-            $sectionContent = $this->sanitizeContent($sectionContent, $warnings);
+            $sectionContent = $this->sanitizeContent(SectionContent::fromArray($content), $warnings);
             $newSection = Section::create(
                 $pageId,
                 $sections->count(),
@@ -363,17 +357,6 @@ final class SectionService implements SectionSourceWriter, SectionHistoryRestore
     public function restore(int $pageId, array $rawSections): array
     {
         return $this->restoreInternal($pageId, $rawSections, true);
-    }
-
-    /**
-     * Save one browser-owned Manual layout inside its aggregate transaction.
-     *
-     * @param array $rawSections Raw array from the Manual change set.
-     * @return array{sections: array, compiled_css: string, warnings: string[]}
-     */
-    public function saveManualLayout(int $pageId, array $rawSections): array
-    {
-        return $this->restoreInternal($pageId, $rawSections, true, null, false);
     }
 
     /**

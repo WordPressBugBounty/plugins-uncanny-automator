@@ -53,19 +53,15 @@ class Admin_Settings_Uncanny_Page_Builder {
 	public function register_tab( $tabs = null ) {
 		$tabs = is_array( $tabs ) ? $tabs : array();
 
-		try {
-			if ( ! $this->can_load_page_builder->execute() ) {
-				return $tabs;
-			}
-
-			$tabs['uncanny-page-builder'] = (object) array(
-				'name'     => esc_html__( 'Uncanny Page Builder', 'uncanny-automator' ),
-				'function' => array( $this, 'tab_output' ),
-				'preload'  => false,
-			);
-		} catch ( \Throwable $throwable ) {
-			error_log( sprintf( '[Uncanny Page Builder] Settings tab registration failed (%s).', get_class( $throwable ) ) );
+		if ( ! $this->can_load_page_builder->execute() ) {
+			return $tabs;
 		}
+
+		$tabs['uncanny-page-builder'] = (object) array(
+			'name'     => esc_html__( 'Uncanny Page Builder', 'uncanny-automator' ),
+			'function' => array( $this, 'tab_output' ),
+			'preload'  => false,
+		);
 
 		return $tabs;
 	}
@@ -76,36 +72,28 @@ class Admin_Settings_Uncanny_Page_Builder {
 	 * @return void
 	 */
 	public function tab_output() {
-		try {
-			$uncanny_page_builder_tabs        = apply_filters( 'automator_settings_uncanny_page_builder_tabs', array() );
-			$current_uncanny_page_builder_tab = automator_filter_has_var( 'uncanny-page-builder' )
-				? sanitize_text_field( automator_filter_input( 'uncanny-page-builder' ) )
-				: 'general';
-			$layout_version                   = automator_filter_has_var( 'automator_hide_settings_tabs' ) ? 'focus' : 'default';
+		$uncanny_page_builder_tabs        = apply_filters( 'automator_settings_uncanny_page_builder_tabs', array() );
+		$current_uncanny_page_builder_tab = automator_filter_has_var( 'uncanny-page-builder' )
+			? sanitize_text_field( automator_filter_input( 'uncanny-page-builder' ) )
+			: 'general';
+		$layout_version                   = automator_filter_has_var( 'automator_hide_settings_tabs' ) ? 'focus' : 'default';
 
-			foreach ( $uncanny_page_builder_tabs as $tab_key => $tab ) {
-				if ( isset( $tab->function ) && is_callable( $tab->function ) ) {
-					$callback = $tab->function;
-					add_action(
-						'automator_settings_uncanny_page_builder_' . $tab_key . '_tab',
-						static function ( ...$ignored ) use ( $callback ): void {
-							try {
-								unset( $ignored );
-								$callback();
-							} catch ( \Throwable $throwable ) {
-								error_log( sprintf( '[Uncanny Page Builder] Settings subtab callback failed (%s).', get_class( $throwable ) ) );
-							}
-						}
-					);
-				}
-
-				$tab->is_selected = $tab_key === $current_uncanny_page_builder_tab;
+		foreach ( $uncanny_page_builder_tabs as $tab_key => $tab ) {
+			if ( isset( $tab->function ) && is_callable( $tab->function ) ) {
+				$callback = $tab->function;
+				add_action(
+					'automator_settings_uncanny_page_builder_' . $tab_key . '_tab',
+					static function ( ...$ignored ) use ( $callback ): void {
+						unset( $ignored );
+						$callback();
+					}
+				);
 			}
 
-			include Utilities::automator_get_view( 'admin-settings/tab/uncanny-page-builder.php' );
-		} catch ( \Throwable $throwable ) {
-			error_log( sprintf( '[Uncanny Page Builder] Settings tab output failed (%s).', get_class( $throwable ) ) );
+			$tab->is_selected = $tab_key === $current_uncanny_page_builder_tab;
 		}
+
+		include Utilities::automator_get_view( 'admin-settings/tab/uncanny-page-builder.php' );
 	}
 
 	/**

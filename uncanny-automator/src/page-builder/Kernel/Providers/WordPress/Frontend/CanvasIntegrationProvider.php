@@ -117,27 +117,21 @@ final class CanvasIntegrationProvider implements ServiceProviderInterface
         add_action('wp_head', [$fontInjector, 'injectPublished'], 51);
 
         add_action('wp_enqueue_scripts', static function () use ($workingAssets, $publishedAssets): void {
-            try {
-                if (!is_singular()) {
-                    return;
-                }
-                $postId = WordPressPostId::fromCurrentQuery(get_queried_object_id());
-                if ($postId === null) {
-                    return;
-                }
-                $isGlobalPart = get_post_type($postId) === 'upb_global_part';
-
-                if (is_admin() || $isGlobalPart) {
-                    $workingAssets->enqueue($postId, $isGlobalPart);
-                    return;
-                }
-
-                $publishedAssets->enqueue();
-            } catch (\Throwable $failure) {
-                // wp_enqueue_scripts is a shared WordPress surface. A Page
-                // Builder failure must not terminate the request.
-                error_log('[Uncanny Page Builder] Canvas asset enqueue failed (' . $failure::class . ')');
+            if (!is_singular()) {
+                return;
             }
+            $postId = WordPressPostId::fromCurrentQuery(get_queried_object_id());
+            if ($postId === null) {
+                return;
+            }
+            $isGlobalPart = get_post_type($postId) === 'upb_global_part';
+
+            if (is_admin() || $isGlobalPart) {
+                $workingAssets->enqueue($postId, $isGlobalPart);
+                return;
+            }
+
+            $publishedAssets->enqueue();
         });
 
         // Editor chrome assets are loaded only by AdminCanvasPage. Frontend

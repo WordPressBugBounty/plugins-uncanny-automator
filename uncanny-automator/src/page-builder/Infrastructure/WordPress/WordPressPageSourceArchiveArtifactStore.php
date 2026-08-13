@@ -19,7 +19,6 @@ final class WordPressPageSourceArchiveArtifactStore implements PageSourceArchive
 
     public function __construct(
         private readonly ?string $directory = null,
-        private readonly ?string $legacyDirectory = null,
     ) {}
 
     public function register(): void
@@ -38,7 +37,6 @@ final class WordPressPageSourceArchiveArtifactStore implements PageSourceArchive
         try {
             $directory = $this->prepareDirectory();
             $this->sweepStaleArtifacts($directory);
-            $this->sweepLegacyArtifacts();
 
             $token = bin2hex(random_bytes(32));
             $archiveName = bin2hex(random_bytes(32)) . '.zip';
@@ -120,16 +118,7 @@ final class WordPressPageSourceArchiveArtifactStore implements PageSourceArchive
             return;
         }
 
-        try {
-            $this->deleteFile($this->archiveDirectory() . DIRECTORY_SEPARATOR . $archiveName);
-        } catch (\Throwable $failure) {
-            // Cron must keep running. A leftover file is acceptable — the
-            // next scheduled cleanup run retries it.
-            error_log(sprintf(
-                '[Uncanny Page Builder] Page archive cleanup failed (%s).',
-                $failure::class,
-            ));
-        }
+        $this->deleteFile($this->archiveDirectory() . DIRECTORY_SEPARATOR . $archiveName);
     }
 
     public function delete(PageSourceArchiveArtifact $artifact): void
@@ -198,23 +187,8 @@ final class WordPressPageSourceArchiveArtifactStore implements PageSourceArchive
         }
 
         $tempDirectory = function_exists('get_temp_dir') ? get_temp_dir() : sys_get_temp_dir();
-        $installationPath = defined('ABSPATH')
-            ? (string) constant('ABSPATH')
-            : dirname(__DIR__, 3);
-        $installationPath = str_replace('\\', '/', rtrim($installationPath, '/\\'));
-        if (PHP_OS_FAMILY === 'Windows') {
-            $installationPath = strtolower($installationPath);
-        }
 
-        // A shared system temp directory can serve sites with different OS
-        // users. Each installation needs its own protected 0700 directory.
-        $installationKey = substr(hash('sha256', $installationPath), 0, 24);
-
-        return rtrim($tempDirectory, '/\\')
-            . DIRECTORY_SEPARATOR
-            . self::DIRECTORY_NAME
-            . '-'
-            . $installationKey;
+        return rtrim($tempDirectory, '/\\') . DIRECTORY_SEPARATOR . self::DIRECTORY_NAME;
     }
 
     private function sweepStaleArtifacts(?string $directory = null): void
@@ -241,39 +215,6 @@ final class WordPressPageSourceArchiveArtifactStore implements PageSourceArchive
                 $this->deleteFile($path);
             }
         }
-    }
-
-    private function sweepLegacyArtifacts(): void
-    {
-        $legacyDirectory = $this->legacyArchiveDirectory();
-        if ($legacyDirectory === null || $legacyDirectory === $this->archiveDirectory()) {
-            return;
-        }
-
-        try {
-            // Old releases used one shared temp directory. Remove only expired
-            // token-shaped archives so an older in-flight download can finish.
-            $this->sweepStaleArtifacts($legacyDirectory);
-        } catch (\Throwable $failure) {
-            // Legacy cleanup is optional. It cannot change a new archive's
-            // storage result.
-            error_log('[Uncanny Page Builder] Legacy page archive cleanup failed (' . $failure::class . ').');
-        }
-    }
-
-    private function legacyArchiveDirectory(): ?string
-    {
-        if (is_string($this->legacyDirectory) && $this->legacyDirectory !== '') {
-            return rtrim($this->legacyDirectory, '/\\');
-        }
-
-        if (is_string($this->directory) && $this->directory !== '') {
-            return null;
-        }
-
-        $tempDirectory = function_exists('get_temp_dir') ? get_temp_dir() : sys_get_temp_dir();
-
-        return rtrim($tempDirectory, '/\\') . DIRECTORY_SEPARATOR . self::DIRECTORY_NAME;
     }
 
     private function writeProtectionFile(string $path, string $contents): void

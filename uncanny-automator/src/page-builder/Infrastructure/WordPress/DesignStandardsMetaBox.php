@@ -76,25 +76,19 @@ final class DesignStandardsMetaBox
             return;
         }
 
-        try {
-            [
-                'typographyRoles' => $typographyRoles,
-                'typographyDefaults' => $typographyDefaults,
-                'roleDefinitions' => $roleDefinitions,
-                'fontFamilyCatalog' => $fontFamilyCatalog,
-                'linkFields' => $linkFields,
-                'lockedTypographyKeys' => $lockedTypographyKeys,
-                'lockedTokenKeys' => $lockedTokenKeys,
-                'nonceKey' => $nonceKey,
-                'nonceValue' => $nonceValue,
-            ] = $this->pageScopeViewData($post->ID);
+        [
+            'typographyRoles' => $typographyRoles,
+            'typographyDefaults' => $typographyDefaults,
+            'roleDefinitions' => $roleDefinitions,
+            'fontFamilyCatalog' => $fontFamilyCatalog,
+            'linkFields' => $linkFields,
+            'lockedTypographyKeys' => $lockedTypographyKeys,
+            'lockedTokenKeys' => $lockedTokenKeys,
+            'nonceKey' => $nonceKey,
+            'nonceValue' => $nonceValue,
+        ] = $this->pageScopeViewData($post->ID);
 
-            include __DIR__ . '/../../Presentation/DesignStandards/page-text-styles.php';
-        } catch (\Throwable $failure) {
-            // Render nothing further; a metabox failure must not fail the
-            // complete WordPress edit screen.
-            error_log('[Uncanny Page Builder] Text styles metabox render failed (' . $failure::class . ')');
-        }
+        include __DIR__ . '/../../Presentation/DesignStandards/page-text-styles.php';
     }
 
     public function renderColors($post = null): void
@@ -103,20 +97,14 @@ final class DesignStandardsMetaBox
             return;
         }
 
-        try {
-            [
-                'tokenGroups' => $tokenGroups,
-                'lockedTokenKeys' => $lockedTokenKeys,
-                'nonceKey' => $nonceKey,
-                'nonceValue' => $nonceValue,
-            ] = $this->pageScopeViewData($post->ID);
+        [
+            'tokenGroups' => $tokenGroups,
+            'lockedTokenKeys' => $lockedTokenKeys,
+            'nonceKey' => $nonceKey,
+            'nonceValue' => $nonceValue,
+        ] = $this->pageScopeViewData($post->ID);
 
-            include __DIR__ . '/../../Presentation/DesignStandards/page-colors.php';
-        } catch (\Throwable $failure) {
-            // Render nothing further; a metabox failure must not fail the
-            // complete WordPress edit screen.
-            error_log('[Uncanny Page Builder] Colors metabox render failed (' . $failure::class . ')');
-        }
+        include __DIR__ . '/../../Presentation/DesignStandards/page-colors.php';
     }
 
     /**

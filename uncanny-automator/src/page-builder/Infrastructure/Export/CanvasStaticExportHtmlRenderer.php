@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace UncannyPageBuilder\Infrastructure\Export;
 
-use UncannyPageBuilder\Domain\Binding\DynamicBindingRenderMode;
 use UncannyPageBuilder\Domain\Export\StaticExportHtmlRendererInterface;
 use UncannyPageBuilder\Domain\Export\StaticExportPageIdentity;
 use UncannyPageBuilder\Infrastructure\Rendering\CanvasRenderer;
@@ -28,7 +27,6 @@ final class CanvasStaticExportHtmlRenderer implements StaticExportHtmlRendererIn
             isset($section['id']) ? (int) $section['id'] : null,
             [],
             $pageIdentity,
-            DynamicBindingRenderMode::FreezeOnly,
         );
     }
 }

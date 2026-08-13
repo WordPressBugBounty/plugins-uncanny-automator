@@ -62,51 +62,39 @@ final class EditorLockHeartbeat
             return $response;
         }
 
+        $state = $this->refreshOwnership->execute(
+            $postId,
+            (int) get_current_user_id(),
+            $lock,
+        );
+
         try {
-            $state = $this->refreshOwnership->execute(
-                $postId,
-                (int) get_current_user_id(),
-                $lock,
-            );
+            $sourceGeneration = $this->sourceGeneration($post);
+        } catch (\Throwable) {
+            $sourceGeneration = -1;
+            $this->logSourceGenerationUnavailable($postId, $post->post_type);
 
-            try {
-                $sourceGeneration = $this->sourceGeneration($post);
-            } catch (\Throwable) {
-                $sourceGeneration = -1;
-                $this->logSourceGenerationUnavailable($postId, $post->post_type);
-
-                /*
-                 * A generation lookup failure must not erase a competing owner
-                 * that was already confirmed by the lock store. Owned/available
-                 * states still degrade because safe resume requires both facts.
-                 */
-                if ($state->status() !== EditorOwnershipStatus::Blocked) {
-                    $state = EditorOwnershipState::unavailable('source generation unavailable');
-                }
+            /*
+             * A generation lookup failure must not erase a competing owner
+             * that was already confirmed by the lock store. Owned/available
+             * states still degrade because safe resume requires both facts.
+             */
+            if ($state->status() !== EditorOwnershipStatus::Blocked) {
+                $state = EditorOwnershipState::unavailable('source generation unavailable');
             }
-
-            $response['wp-refresh-post-lock'] = $this->coreCompatibleResponse($state);
-            $response['upb-editor-lock'] = [
-                'status'            => $state->status()->value,
-                'source_generation' => $sourceGeneration,
-            ];
-
-            if ($state->status() === EditorOwnershipStatus::Unavailable) {
-                $this->logUnavailable($postId, $post->post_type);
-            }
-
-            return $response;
-        } catch (\Throwable $failure) {
-            // The heartbeat response carries every plugin's payload. A Page
-            // Builder projection failure must hand back the incoming response
-            // instead of breaking the whole heartbeat request.
-            error_log(sprintf(
-                '[Uncanny Page Builder] Editor lock heartbeat refresh failed (%s).',
-                $failure::class,
-            ));
-
-            return $response;
         }
+
+        $response['wp-refresh-post-lock'] = $this->coreCompatibleResponse($state);
+        $response['upb-editor-lock'] = [
+            'status'            => $state->status()->value,
+            'source_generation' => $sourceGeneration,
+        ];
+
+        if ($state->status() === EditorOwnershipStatus::Unavailable) {
+            $this->logUnavailable($postId, $post->post_type);
+        }
+
+        return $response;
     }
 
     /** @return array<string, mixed> */

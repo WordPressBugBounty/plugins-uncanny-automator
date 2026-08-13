@@ -46,11 +46,6 @@ final class OperationHistoryService
         return $this->repository->latestRedoable($scopeType, $scopeId);
     }
 
-    /**
-     * Compatibility preview for cached clients that predate one-step durable history.
-     *
-     * The production Manual editor commits one cursor movement per Undo or Redo.
-     */
     public function previewPageTransition(
         int $pageId,
         string $direction,
@@ -84,11 +79,6 @@ final class OperationHistoryService
             throw new \LogicException('History preview requires a saved operation.');
         }
         $preview = HistoryOperationRestorer::previewTarget($entry, $direction === 'undo');
-        $baseline = HistoryOperationRestorer::previewTarget($entry, $direction !== 'undo');
-
-        if ($preview['kind'] !== $baseline['kind']) {
-            throw new \LogicException('History preview states must have the same kind.');
-        }
 
         return new HistoryTransitionPreview(
             operationId: $operationId,
@@ -98,7 +88,6 @@ final class OperationHistoryService
             baseGeneration: $expectedGeneration,
             kind: $preview['kind'],
             target: $preview['target'],
-            baseline: $baseline['target'],
         );
     }
 

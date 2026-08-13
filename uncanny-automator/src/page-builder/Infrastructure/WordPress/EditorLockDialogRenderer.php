@@ -132,27 +132,24 @@ final class EditorLockDialogRenderer
         string $editorMode,
         EditorOwnershipState $state,
     ): never {
-        try {
-            $message = _x(
-                "We couldn't confirm the takeover. No ownership change was reported. Try again or leave the editor.",
-                'Page Builder',
-                'uncanny-automator',
-            );
-            $retryState = $state->owner() !== null
-                ? $state
-                : EditorOwnershipState::blocked(
-                    new EditorLockOwner(0, _x('Another editor', 'Page Builder', 'uncanny-automator'), ''),
-                    true,
-                );
-            $body = $this->blocked($retryState, $postId, $targetKind, $editorMode, $message);
-            $title = esc_html_x('Editing takeover not confirmed', 'Page Builder', 'uncanny-automator');
-        } catch (\Throwable $failure) {
-            error_log('[Uncanny Page Builder] Editor takeover failure dialog failed (' . $failure::class . ')');
-            $body = 'Uncanny Page Builder could not confirm the editor takeover. Return to Pages and try again.';
-            $title = 'Editing takeover not confirmed';
-        }
+        $message = _x(
+            "We couldn't confirm the takeover. No ownership change was reported. Try again or leave the editor.",
+            'Page Builder',
+            'uncanny-automator',
+        );
 
-        wp_die($body, $title, ['response' => 409]);
+        $retryState = $state->owner() !== null
+            ? $state
+            : EditorOwnershipState::blocked(
+                new EditorLockOwner(0, _x('Another editor', 'Page Builder', 'uncanny-automator'), ''),
+                true,
+            );
+
+        wp_die(
+            $this->blocked($retryState, $postId, $targetKind, $editorMode, $message),
+            esc_html_x('Editing takeover not confirmed', 'Page Builder', 'uncanny-automator'),
+            ['response' => 409],
+        );
     }
 
     public function terminateBlocked(
@@ -161,16 +158,11 @@ final class EditorLockDialogRenderer
         string $targetKind,
         string $editorMode,
     ): never {
-        try {
-            $body = $this->blocked($state, $postId, $targetKind, $editorMode);
-            $title = esc_html_x('Item is already being edited', 'Page Builder', 'uncanny-automator');
-        } catch (\Throwable $failure) {
-            error_log('[Uncanny Page Builder] Editor ownership dialog failed (' . $failure::class . ')');
-            $body = 'This item is already being edited. Return to Pages and try again.';
-            $title = 'Item is already being edited';
-        }
-
-        wp_die($body, $title, ['response' => 409]);
+        wp_die(
+            $this->blocked($state, $postId, $targetKind, $editorMode),
+            esc_html_x('Item is already being edited', 'Page Builder', 'uncanny-automator'),
+            ['response' => 409],
+        );
     }
 
     private function backUrl(string $targetKind): string

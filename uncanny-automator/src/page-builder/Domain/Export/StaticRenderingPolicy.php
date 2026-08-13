@@ -112,11 +112,8 @@ final class StaticRenderingPolicy
     {
     }
 
-    public function prepareHtml(
-        string $html,
-        string $source,
-        StaticExportPurpose $purpose = StaticExportPurpose::Portable,
-    ): StaticRenderingResult {
+    public function prepareHtml(string $html, string $source): StaticRenderingResult
+    {
         $records = [];
         $prepared = $html;
 
@@ -129,17 +126,6 @@ final class StaticRenderingPolicy
                     'classification' => $classification->value,
                     'status' => 'passed',
                     'message' => 'Binding can be included in published output.',
-                ];
-                continue;
-            }
-
-            if ($purpose === StaticExportPurpose::Publication) {
-                $records[] = [
-                    'source' => $source,
-                    'binding' => $bindingId,
-                    'classification' => $classification->value,
-                    'status' => 'runtime',
-                    'message' => 'Binding will resolve for each public request.',
                 ];
                 continue;
             }

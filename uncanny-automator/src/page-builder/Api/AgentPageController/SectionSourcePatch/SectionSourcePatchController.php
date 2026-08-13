@@ -34,16 +34,7 @@ final class SectionSourcePatchController
             ]);
         }
 
-        try {
-            return $this->previewSourcePatch($request, 'preview_change');
-        } catch (\Throwable $failure) {
-            error_log(sprintf('[Uncanny Page Builder] preview_change failed (%s).', $failure::class));
-
-            return $this->responses->error('preview_change', 500, 'preview_failed', [
-                'NEXT STEP',
-                'A preview saves nothing. Retry preview_change. If the error continues, review the WordPress error log.',
-            ]);
-        }
+        return $this->previewSourcePatch($request, 'preview_change');
     }
 
     private function writePatch(\WP_REST_Request $request): \WP_REST_Response|\WP_Error

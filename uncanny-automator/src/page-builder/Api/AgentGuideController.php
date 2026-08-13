@@ -113,22 +113,12 @@ final class AgentGuideController
     {
         $operation = trim((string) ($request->get_param('operation') ?? ''));
 
-        try {
-            if ($operation === '' || $operation === 'search') {
-                return $this->listBindings($request);
-            }
+        if ($operation === '' || $operation === 'search') {
+            return $this->listBindings($request);
+        }
 
-            if ($operation === 'guide') {
-                return $this->getBindingGuide($request);
-            }
-        } catch (\Throwable $failure) {
-            error_log(sprintf('[Uncanny Page Builder] manage_binding "%s" failed (%s).', $operation, $failure::class));
-
-            return AgentTextResponse::error('manage_binding', 500, 'binding_read_failed', [
-                'OPERATION: ' . $operation,
-                'NEXT STEP',
-                'Retry manage_binding. If the error continues, review the WordPress error log.',
-            ]);
+        if ($operation === 'guide') {
+            return $this->getBindingGuide($request);
         }
 
         return AgentTextResponse::error(
@@ -300,20 +290,6 @@ final class AgentGuideController
     {
         unset($request);
 
-        try {
-            return $this->siteDesignText();
-        } catch (\Throwable $failure) {
-            error_log(sprintf('[Uncanny Page Builder] get_site_design failed (%s).', $failure::class));
-
-            return AgentTextResponse::error('get_site_design', 500, 'site_design_read_failed', [
-                'NEXT STEP',
-                'Retry get_site_design. If the error continues, review the WordPress error log.',
-            ]);
-        }
-    }
-
-    private function siteDesignText(): \WP_REST_Response
-    {
         $snapshot = $this->brandingSnapshot();
         $tokens = $snapshot['tokens'];
         $lockedKeys = $snapshot['locked_keys'];

@@ -8,7 +8,6 @@ use UncannyPageBuilder\Application\Access\GetPageBuilderAllowedCapabilities;
 use UncannyPageBuilder\Application\Canvas\OriginalPageContentReaderInterface;
 use UncannyPageBuilder\Application\Canvas\PublicPageRenderPolicy;
 use UncannyPageBuilder\Infrastructure\Rendering\ContentRenderer;
-use UncannyPageBuilder\Infrastructure\Rendering\DynamicRenderer;
 use UncannyPageBuilder\Kernel\Container;
 use UncannyPageBuilder\Kernel\Contracts\ServiceProviderInterface;
 
@@ -21,7 +20,6 @@ final class ContentPipelineProvider implements ServiceProviderInterface
                 $c->typed(PublicPageRenderPolicy::class),
                 $c->typed(GetPageBuilderAllowedCapabilities::class),
                 $c->typed(OriginalPageContentReaderInterface::class),
-                $c->typed(DynamicRenderer::class),
             );
         });
     }

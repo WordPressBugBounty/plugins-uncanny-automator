@@ -113,7 +113,7 @@ final class SectionNodeHtmlMutator
             throw new \InvalidArgumentException('Could not load section HTML.');
         }
 
-        $targetElement = $this->findByStableSelector($doc, $selectorResult->selector());
+        $targetElement = $this->findByStableSelector($root, $selectorResult->selector());
         if (!$targetElement instanceof DOMElement) {
             throw new \InvalidArgumentException('Selected node no longer exists. Select it again.');
         }
@@ -140,7 +140,7 @@ final class SectionNodeHtmlMutator
         $path = $this->stringValue($change, 'path');
 
         if ($kind === 'content' && $name === 'text') {
-            $node = $path !== '' ? $this->locateByPath($doc, $path) : $targetElement;
+            $node = $path !== '' ? $this->locateByPath($root, $path) : $targetElement;
             if (!$node instanceof DOMNode || !$this->nodeIsInsideTarget($node, $targetElement)) {
                 throw new \InvalidArgumentException('Selected content no longer exists. Select it again.');
             }
@@ -150,7 +150,7 @@ final class SectionNodeHtmlMutator
         }
 
         if ($kind === 'content' && $name === 'safe_html') {
-            $node = $path !== '' ? $this->locateByPath($doc, $path) : $targetElement;
+            $node = $path !== '' ? $this->locateByPath($root, $path) : $targetElement;
             if (
                 (!$node instanceof DOMElement || !$this->nodeIsInsideTarget($node, $targetElement))
                 && $targetElement instanceof DOMElement
@@ -172,7 +172,7 @@ final class SectionNodeHtmlMutator
         }
 
         if ($kind === 'attribute' && in_array($name, self::ALLOWED_ATTRIBUTES, true)) {
-            $node = $path !== '' ? $this->locateByPath($doc, $path) : $targetElement;
+            $node = $path !== '' ? $this->locateByPath($root, $path) : $targetElement;
             if (!$node instanceof DOMElement || !$this->nodeIsInsideTarget($node, $targetElement)) {
                 throw new \InvalidArgumentException('Selected attribute no longer exists. Select it again.');
             }
@@ -460,7 +460,7 @@ final class SectionNodeHtmlMutator
             return null;
         }
 
-        $element = $this->findByStableSelector($doc, $selector);
+        $element = $this->findByStableSelector($root, $selector);
 
         return $element instanceof DOMElement ? strtolower($element->tagName) : null;
     }
@@ -714,7 +714,7 @@ final class SectionNodeHtmlMutator
         return false;
     }
 
-    private function findByStableSelector(DOMNode $root, string $selector): ?DOMElement
+    private function findByStableSelector(DOMElement $root, string $selector): ?DOMElement
     {
         if (preg_match('/^#([A-Za-z][\w-]*)$/', $selector, $matches) === 1) {
             return $this->singleElementByAttribute($root, 'id', $matches[1]);
@@ -727,19 +727,11 @@ final class SectionNodeHtmlMutator
         return null;
     }
 
-    private function singleElementByAttribute(DOMNode $root, string $attribute, string $value): ?DOMElement
+    private function singleElementByAttribute(DOMElement $root, string $attribute, string $value): ?DOMElement
     {
-        $document = $root instanceof DOMDocument ? $root : $root->ownerDocument;
-        if (!$document instanceof DOMDocument) {
-            return null;
-        }
-
-        $xpath = new DOMXPath($document);
+        $xpath = new DOMXPath($root->ownerDocument);
         $literal = $this->xpathLiteral($value);
-        $expression = $root instanceof DOMElement
-            ? 'self::*[@' . $attribute . ' = ' . $literal . '] | .//*[@' . $attribute . ' = ' . $literal . ']'
-            : './/*[@' . $attribute . ' = ' . $literal . ']';
-        $nodes = $xpath->query($expression, $root);
+        $nodes = $xpath->query('self::*[@' . $attribute . ' = ' . $literal . '] | .//*[@' . $attribute . ' = ' . $literal . ']', $root);
         if ($nodes === false || $nodes->length !== 1) {
             return null;
         }
@@ -766,26 +758,15 @@ final class SectionNodeHtmlMutator
         return false;
     }
 
-    private function locateByPath(DOMDocument $doc, string $path): ?DOMNode
+    private function locateByPath(DOMElement $root, string $path): ?DOMNode
     {
         $segments = explode('.', trim($path));
-        $rootSegment = array_shift($segments);
-        if ($rootSegment === null || $rootSegment === '' || ctype_digit($rootSegment) === false) {
+        if (($segments[0] ?? '') !== '0') {
             return null;
         }
 
-        $roots = [];
-        foreach ($doc->childNodes as $child) {
-            if ($child instanceof DOMElement) {
-                $roots[] = $child;
-            }
-        }
-        $current = $roots[(int) $rootSegment] ?? null;
-        if (!$current instanceof DOMElement) {
-            return null;
-        }
-
-        foreach ($segments as $segment) {
+        $current = $root;
+        foreach (array_slice($segments, 1) as $segment) {
             if ($segment === '' || ctype_digit($segment) === false) {
                 return null;
             }

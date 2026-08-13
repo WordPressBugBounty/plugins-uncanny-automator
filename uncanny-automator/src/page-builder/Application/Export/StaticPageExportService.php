@@ -16,7 +16,6 @@ use UncannyPageBuilder\Domain\DesignStandards\DesignTokenCssRenderer;
 use UncannyPageBuilder\Domain\Exception\StaleSourceGenerationException;
 use UncannyPageBuilder\Domain\Exception\PageNotFoundException;
 use UncannyPageBuilder\Domain\Export\StaticExportArtifact;
-use UncannyPageBuilder\Domain\Export\StaticExportPurpose;
 use UncannyPageBuilder\Domain\Export\StaticExportContextProviderInterface;
 use UncannyPageBuilder\Domain\Export\StaticExportAssetSourceInterface;
 use UncannyPageBuilder\Domain\Export\StaticExportGlobalPartResolverInterface;
@@ -56,10 +55,9 @@ final class StaticPageExportService implements StaticPageExportBuilderInterface
         int $pageId,
         ?string $documentTitle = null,
         ?string $documentPermalink = null,
-        StaticExportPurpose $purpose = StaticExportPurpose::Portable,
     ): StaticPageExport {
         if (!$this->sourceGenerations instanceof SourceGenerationStoreInterface) {
-            return $this->buildCurrentPage($pageId, null, $documentTitle, $documentPermalink, $purpose);
+            return $this->buildCurrentPage($pageId, null, $documentTitle, $documentPermalink);
         }
 
         $lastSnapshot = null;
@@ -70,7 +68,6 @@ final class StaticPageExportService implements StaticPageExportBuilderInterface
                 $globalGeneration,
                 $documentTitle,
                 $documentPermalink,
-                $purpose,
             );
             $lastSnapshot = SourceGenerationSnapshot::fromDependencies($export->dependencies());
 
@@ -107,7 +104,6 @@ final class StaticPageExportService implements StaticPageExportBuilderInterface
         ?int $globalGeneration,
         ?string $documentTitle,
         ?string $documentPermalink,
-        StaticExportPurpose $purpose,
     ): StaticPageExport {
         if ($pageId <= 0 || !$this->sections->pageExists($pageId)) {
             throw new PageNotFoundException($pageId);
@@ -121,15 +117,14 @@ final class StaticPageExportService implements StaticPageExportBuilderInterface
         $report = new StaticRenderingReport();
         $pageIdentity = $this->pageIdentity($pageId, $documentTitle, $documentPermalink);
 
-        [$headerHtml, $headerReport] = $this->renderGlobalPart($header, $pageId, 'header', $pageIdentity, $purpose);
+        [$headerHtml, $headerReport] = $this->renderGlobalPart($header, $pageId, 'header', $pageIdentity);
         [$sectionsHtml, $sectionsReport] = $this->renderSections(
             $collection->toArray(),
             $pageId,
             'page',
             $pageIdentity,
-            $purpose,
         );
-        [$footerHtml, $footerReport] = $this->renderGlobalPart($footer, $pageId, 'footer', $pageIdentity, $purpose);
+        [$footerHtml, $footerReport] = $this->renderGlobalPart($footer, $pageId, 'footer', $pageIdentity);
 
         $report = $report->merge($headerReport)->merge($sectionsReport)->merge($footerReport);
         $bodyHtml = $headerHtml . $sectionsHtml . $footerHtml;
@@ -207,13 +202,12 @@ final class StaticPageExportService implements StaticPageExportBuilderInterface
         int $pageId,
         string $source,
         ?StaticExportPageIdentity $pageIdentity,
-        StaticExportPurpose $purpose,
     ): array {
         $html = '';
         $report = new StaticRenderingReport();
 
         foreach ($sections as $section) {
-            $prepared = $this->prepareSection($section, $source, $purpose);
+            $prepared = $this->prepareSection($section, $source);
             $section['content']['html'] = $prepared->html();
             $report = $report->merge($prepared->report());
 
@@ -236,7 +230,6 @@ final class StaticPageExportService implements StaticPageExportBuilderInterface
         int $pageId,
         string $source,
         ?StaticExportPageIdentity $pageIdentity,
-        StaticExportPurpose $purpose,
     ): array {
         $sections = $part['sections'] ?? null;
         if (!is_array($sections)) {
@@ -248,7 +241,6 @@ final class StaticPageExportService implements StaticPageExportBuilderInterface
             $pageId,
             $source,
             $pageIdentity,
-            $purpose,
         );
     }
 
@@ -342,14 +334,11 @@ final class StaticPageExportService implements StaticPageExportBuilderInterface
         return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
     }
 
-    private function prepareSection(
-        array $section,
-        string $source,
-        StaticExportPurpose $purpose,
-    ): StaticRenderingResult {
+    private function prepareSection(array $section, string $source): StaticRenderingResult
+    {
         $html = (string) ($section['content']['html'] ?? '');
 
-        return $this->policy()->prepareHtml($html, $source, $purpose);
+        return $this->policy()->prepareHtml($html, $source);
     }
 
     /**

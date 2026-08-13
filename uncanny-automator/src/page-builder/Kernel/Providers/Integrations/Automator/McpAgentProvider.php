@@ -15,7 +15,6 @@ use UncannyPageBuilder\Infrastructure\Persistence\DatabaseSectionRepository;
 use UncannyPageBuilder\Application\ShellModeService;
 use UncannyPageBuilder\Infrastructure\Automator\McpPayloadContextResolver;
 use UncannyPageBuilder\Infrastructure\WordPress\AdminCanvasPage;
-use UncannyPageBuilder\Infrastructure\WordPress\WordPressCallbackBoundary;
 
 final class McpAgentProvider implements ServiceProviderInterface
 {
@@ -52,10 +51,9 @@ final class McpAgentProvider implements ServiceProviderInterface
         // Page Builder owns the conversation starters on its own canvas;
         // Automator owns the filter, validation, and chat SDK contract.
         $conversationStarters = new \UncannyPageBuilder\Infrastructure\Automator\McpConversationStarters($sectionRepo);
-        $callbacks = new WordPressCallbackBoundary();
-        add_filter('automator_mcp_conversation_starters', $callbacks->filter('mcp.conversation_starters', [$conversationStarters, 'filter']), 10, 2);
+        add_filter('automator_mcp_conversation_starters', [$conversationStarters, 'filter'], 10, 2);
 
-        add_filter('automator_mcp_in_allowed_pages', $callbacks->filter('mcp.allowed_pages', static function ($allowed = null) use ($allowedCapabilities): bool {
+        add_filter('automator_mcp_in_allowed_pages', static function ($allowed = null) use ($allowedCapabilities): bool {
             if ($allowed === true) {
                 return true;
             }
@@ -73,7 +71,7 @@ final class McpAgentProvider implements ServiceProviderInterface
                 return true;
             }
             return false;
-        }));
+        });
     }
 
     /**
@@ -104,23 +102,7 @@ final class McpAgentProvider implements ServiceProviderInterface
             return;
         }
 
-        try {
-            $client->load_chat_sdk();
-            $client->render_launcher(null);
-        } catch (\RuntimeException $error) {
-            self::reportLauncherFailure($error);
-        } catch (\Throwable $error) {
-            // Automator is an external runtime. Its failure must not terminate
-            // the Page Builder canvas request.
-            self::reportLauncherFailure($error);
-        }
-    }
-
-    private static function reportLauncherFailure(\Throwable $error): void
-    {
-        error_log(sprintf(
-            '[Uncanny Page Builder] Automator launcher unavailable (%s).',
-            $error::class,
-        ));
+        $client->load_chat_sdk();
+        $client->render_launcher(null);
     }
 }
