@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace UncannyPageBuilder\Api;
 
 use UncannyPageBuilder\Application\DesignStandardsService;
+use UncannyPageBuilder\Application\Filesystem\LocalFilesystemPortInterface;
 use UncannyPageBuilder\Domain\Binding\BindingRegistry;
 use UncannyPageBuilder\Infrastructure\WordPress\AdminBrandingPage;
 
@@ -20,6 +21,7 @@ final class AgentGuideController
         private readonly PermissionChecker $permissions,
         private readonly BindingRegistry $registry,
         private readonly DesignStandardsService $designStandards,
+        private readonly LocalFilesystemPortInterface $filesystem,
     ) {}
 
     public function registerRoutes(): void
@@ -113,12 +115,22 @@ final class AgentGuideController
     {
         $operation = trim((string) ($request->get_param('operation') ?? ''));
 
-        if ($operation === '' || $operation === 'search') {
-            return $this->listBindings($request);
-        }
+        try {
+            if ($operation === '' || $operation === 'search') {
+                return $this->listBindings($request);
+            }
 
-        if ($operation === 'guide') {
-            return $this->getBindingGuide($request);
+            if ($operation === 'guide') {
+                return $this->getBindingGuide($request);
+            }
+        } catch (\Throwable $failure) {
+            error_log(sprintf('[Uncanny Page Builder] manage_binding "%s" failed (%s).', $operation, $failure::class));
+
+            return AgentTextResponse::error('manage_binding', 500, 'binding_read_failed', [
+                'OPERATION: ' . $operation,
+                'NEXT STEP',
+                'Retry manage_binding. If the error continues, review the WordPress error log.',
+            ]);
         }
 
         return AgentTextResponse::error(
@@ -155,7 +167,7 @@ final class AgentGuideController
             return new \WP_Error('guide_read_failed', 'Could not read guide file.', ['status' => 500]);
         }
 
-        $content = file_get_contents($realPath);
+        $content = $this->filesystem->read($realPath);
 
         if ($content === false) {
             return new \WP_Error('guide_read_failed', 'Could not read guide file.', ['status' => 500]);
@@ -290,6 +302,20 @@ final class AgentGuideController
     {
         unset($request);
 
+        try {
+            return $this->siteDesignText();
+        } catch (\Throwable $failure) {
+            error_log(sprintf('[Uncanny Page Builder] get_site_design failed (%s).', $failure::class));
+
+            return AgentTextResponse::error('get_site_design', 500, 'site_design_read_failed', [
+                'NEXT STEP',
+                'Retry get_site_design. If the error continues, review the WordPress error log.',
+            ]);
+        }
+    }
+
+    private function siteDesignText(): \WP_REST_Response
+    {
         $snapshot = $this->brandingSnapshot();
         $tokens = $snapshot['tokens'];
         $lockedKeys = $snapshot['locked_keys'];

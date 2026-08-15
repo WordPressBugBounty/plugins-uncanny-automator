@@ -2,7 +2,11 @@
 
 namespace Uncanny_Automator;
 
-use function Uncanny_Automator\App\Infrastructure\automator_license_manager;
+use Uncanny_Automator\App\Feature_State\Application\Get_Feature_State;
+use Uncanny_Automator\App\Feature_State\Domain\Feature_State;
+use Uncanny_Automator\App\Uncanny_Agent\Application\Check_Uncanny_Agent_Settings_Access;
+
+use function Uncanny_Automator\App\Infrastructure\automator_feature_state_query;
 
 /**
  * Class Admin_Settings
@@ -13,10 +17,37 @@ use function Uncanny_Automator\App\Infrastructure\automator_license_manager;
  * @author  Agustin B.
  */
 class Admin_Settings {
+
+	/**
+	 * Uncanny Agent settings access use case.
+	 *
+	 * @var Check_Uncanny_Agent_Settings_Access|null
+	 */
+	private $check_uncanny_agent_settings_access;
+
+	/**
+	 * Request-scoped feature-state query.
+	 *
+	 * @var Get_Feature_State|null
+	 */
+	private $feature_state;
+
 	/**
 	 * Class constructor
 	 */
 	public function __construct() {
+		$this->feature_state                       = null;
+		$this->check_uncanny_agent_settings_access = null;
+
+		try {
+			$this->feature_state = automator_feature_state_query();
+
+			if ( $this->feature_state instanceof Get_Feature_State ) {
+				$this->check_uncanny_agent_settings_access = new Check_Uncanny_Agent_Settings_Access( $this->feature_state );
+			}
+		} catch ( \Throwable $error ) {
+			unset( $error );
+		}
 
 		add_action( 'admin_menu', array( $this, 'submenu_page' ) );
 
@@ -51,45 +82,35 @@ class Admin_Settings {
 		$this->load_tab( 'general' );
 		$this->load_tab( 'premium-integrations' );
 
-		// Uncanny Agent: requires Pro active AND a valid Pro license.
-		if ( $this->is_uncanny_agent_eligible() ) {
+		if ( $this->can_access_uncanny_agent_settings() ) {
 			$this->load_tab( 'uncanny-agent' );
 		}
 
-		$this->load_tab( 'uncanny-page-builder' );
+		if ( $this->can_access_uncanny_page_builder_settings() ) {
+			$this->load_tab( 'uncanny-page-builder' );
+		}
 		$this->load_tab( 'advanced' );
 		$this->load_tab( 'addons' );
 	}
 
 	/**
-	 * Whether the Uncanny Agent settings tab should load.
-	 *
-	 * Pro must be active and the cached license must report a valid Pro license.
-	 * License_Manager::get_license_data() reads the cached transient without
-	 * triggering a network hop, keeping the settings page render synchronous.
+	 * Determine if the Uncanny Agent settings tab is available.
 	 *
 	 * @return bool
 	 */
-	private function is_uncanny_agent_eligible() {
+	private function can_access_uncanny_agent_settings() {
+		return $this->check_uncanny_agent_settings_access instanceof Check_Uncanny_Agent_Settings_Access
+			&& $this->check_uncanny_agent_settings_access->execute();
+	}
 
-		if ( ! defined( 'AUTOMATOR_PRO_PLUGIN_VERSION' ) || ! AUTOMATOR_PRO_PLUGIN_VERSION ) {
-			return false;
-		}
-
-		if ( ! defined( 'AUTOMATOR_PRO_ITEM_ID' ) ) {
-			return false;
-		}
-
-		$license = automator_license_manager()->get_license_data();
-
-		if ( ! is_array( $license ) ) {
-			return false;
-		}
-
-		$license_status = isset( $license['license'] ) ? (string) $license['license'] : '';
-		$download_id    = isset( $license['download_id'] ) ? (int) $license['download_id'] : 0;
-
-		return 'valid' === $license_status && (int) AUTOMATOR_PRO_ITEM_ID === $download_id;
+	/**
+	 * Determine if the Uncanny Page Builder settings tab is available.
+	 *
+	 * @return bool
+	 */
+	private function can_access_uncanny_page_builder_settings() {
+		return $this->feature_state instanceof Get_Feature_State
+			&& $this->feature_state->execute()->is_visible( Feature_State::PAGE_BUILDER_SETTINGS_TAB );
 	}
 
 	/**
@@ -111,9 +132,12 @@ class Admin_Settings {
 
 		// Get the tabs
 		$tabs = $this->get_top_level_tabs();
+		$tabs = is_array( $tabs ) ? $tabs : array();
 
 		// Get the current tab
 		$current_tab = automator_filter_has_var( 'tab' ) ? sanitize_text_field( automator_filter_input( 'tab' ) ) : 'general';
+
+		$current_tab = $this->normalize_current_tab( $current_tab, $tabs );
 
 		// Check if the user is requesting the focus version
 		$layout_version = automator_filter_has_var( 'automator_hide_settings_tabs' ) ? 'focus' : 'default';
@@ -132,6 +156,18 @@ class Admin_Settings {
 
 		// Load the view
 		include Utilities::automator_get_view( 'admin-settings/admin-settings.php' );
+	}
+
+	/**
+	 * Fall back from an unavailable settings tab to General.
+	 *
+	 * @param string               $current_tab Requested tab key.
+	 * @param array<string,object> $tabs        Registered tabs.
+	 *
+	 * @return string
+	 */
+	private function normalize_current_tab( $current_tab, array $tabs ) {
+		return array_key_exists( $current_tab, $tabs ) ? $current_tab : 'general';
 	}
 
 	/**

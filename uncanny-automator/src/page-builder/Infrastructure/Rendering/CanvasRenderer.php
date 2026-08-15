@@ -12,6 +12,7 @@ use UncannyPageBuilder\Application\ShellModeService;
 use UncannyPageBuilder\Domain\Canvas\AlpineVisibilityGuard;
 use UncannyPageBuilder\Domain\Canvas\EmptyCanvasInvitation;
 use UncannyPageBuilder\Domain\Compiler\ShadowCompiler;
+use UncannyPageBuilder\Domain\Binding\DynamicBindingRenderMode;
 use UncannyPageBuilder\Domain\Export\StaticExportPageIdentity;
 use UncannyPageBuilder\Domain\GlobalPart\GlobalPartRepositoryInterface;
 use UncannyPageBuilder\Domain\GlobalPart\GlobalPartType;
@@ -130,12 +131,21 @@ final class CanvasRenderer implements CanvasGlobalPartRendererInterface
         ?int $sectionId = null,
         array $attributes = [],
         ?StaticExportPageIdentity $pageIdentity = null,
+        DynamicBindingRenderMode $bindingMode = DynamicBindingRenderMode::ResolveAll,
+        ?array &$removedBindingIds = null,
     ): string {
         $html = $this->sanitizeRenderHtml($html);
         $html = ($this->shortcodeBindingNormalizer ?? new ShortcodeBindingNormalizer())->normalize($html);
 
         if (strpos($html, 'data-ai-dynamic') !== false) {
-            $html = $this->dynamicRenderer->render($html, $pageIdentity);
+            $html = $this->dynamicRenderer->render(
+                $html,
+                $pageIdentity,
+                $bindingMode,
+                $removedBindingIds,
+            );
+        } elseif ($bindingMode === DynamicBindingRenderMode::RemoveAll) {
+            $removedBindingIds = [];
         }
 
         // Lazy-load images that don't already have a loading attribute.
@@ -176,12 +186,45 @@ final class CanvasRenderer implements CanvasGlobalPartRendererInterface
             ) ?? $html;
         }
 
-        $filteredHtml = apply_filters('uncanny_page_builder_section_html', $html, $sectionId);
+        /*
+         * A deactivation fallback is a closed publication product. External
+         * section filters run in the publisher's request and could reinsert
+         * dynamic or privileged output after the omission proof. Keep this
+         * path entirely inside the compiler boundary.
+         */
+        if ($bindingMode === DynamicBindingRenderMode::RemoveAll) {
+            return AlpineVisibilityGuard::addCloakToXShow($html);
+        }
+
+        try {
+            $filteredHtml = apply_filters('uncanny_page_builder_section_html', $html, $sectionId);
+        } catch (\Throwable $failure) {
+            // This filter runs while the canvas and static exports render. Keep
+            // the rendered section when an external callback fails.
+            $this->reportExternalCallbackFailure('uncanny_page_builder_section_html', $failure);
+            $filteredHtml = $html;
+        }
         if (is_string($filteredHtml)) {
             $html = $filteredHtml;
         }
 
         return AlpineVisibilityGuard::addCloakToXShow($html);
+    }
+
+    /**
+     * Notify optional observers before a section renders.
+     *
+     * @param array<string, mixed> $section
+     */
+    public function notifyBeforeSectionRender(array $section, int $ownerId): void
+    {
+        try {
+            do_action('uncanny_page_builder_before_section_render', $section, $ownerId);
+        } catch (\Throwable $failure) {
+            // This action is an optional render observer. Its failure cannot
+            // replace regular page or global part output.
+            $this->reportExternalCallbackFailure('uncanny_page_builder_before_section_render', $failure);
+        }
     }
 
     /**
@@ -201,7 +244,7 @@ final class CanvasRenderer implements CanvasGlobalPartRendererInterface
 
         if (!empty($data['sections'])) {
             foreach ($data['sections'] as $section) {
-                do_action('uncanny_page_builder_before_section_render', $section, $data['post_id']);
+                $this->notifyBeforeSectionRender($section, (int) $data['post_id']);
                 $html = $section['content']['html'] ?? '';
                 echo $this->renderSectionHtml(
                     $html,
@@ -221,6 +264,7 @@ final class CanvasRenderer implements CanvasGlobalPartRendererInterface
                 continue;
             }
 
+            $this->notifyBeforeSectionRender($section, (int) ($part['post_id'] ?? 0));
             $html .= $this->renderSectionHtml(
                 (string) ($section['content']['html'] ?? ''),
                 isset($section['id']) ? (int) $section['id'] : null,
@@ -283,6 +327,19 @@ final class CanvasRenderer implements CanvasGlobalPartRendererInterface
     private function sanitizeRenderHtml(string $html): string
     {
         return HtmlBridgeArtifactCleaner::clean($html);
+    }
+
+    private function reportExternalCallbackFailure(string $hook, \Throwable $failure): void
+    {
+        try {
+            error_log(sprintf(
+                '[Uncanny Page Builder] WordPress callback "%s" failed (%s).',
+                $hook,
+                $failure::class,
+            ));
+        } catch (\Throwable) {
+            // A log failure cannot replace rendered output.
+        }
     }
 
     private function removeClass(\DOMElement $node, string $className): void

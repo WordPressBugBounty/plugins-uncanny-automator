@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace UncannyPageBuilder\Infrastructure\WordPress;
 
+use UncannyPageBuilder\Application\Filesystem\LocalFilesystemPortInterface;
 use UncannyPageBuilder\Application\SourcePackage\PageSourceArchiveArtifact;
 use UncannyPageBuilder\Application\SourcePackage\PageSourceArchiveArtifactStoreInterface;
 
@@ -17,9 +18,15 @@ final class WordPressPageSourceArchiveArtifactStore implements PageSourceArchive
     private const ARCHIVE_PATTERN = '/^[a-f0-9]{64}\.zip$/';
     private const TTL_SECONDS = 300;
 
+    private readonly LocalFilesystemPortInterface $filesystem;
+
     public function __construct(
         private readonly ?string $directory = null,
-    ) {}
+        private readonly ?string $legacyDirectory = null,
+        ?LocalFilesystemPortInterface $filesystem = null,
+    ) {
+        $this->filesystem = $filesystem ?? new WordPressLocalFilesystem();
+    }
 
     public function register(): void
     {
@@ -37,11 +44,12 @@ final class WordPressPageSourceArchiveArtifactStore implements PageSourceArchive
         try {
             $directory = $this->prepareDirectory();
             $this->sweepStaleArtifacts($directory);
+            $this->sweepLegacyArtifacts();
 
             $token = bin2hex(random_bytes(32));
             $archiveName = bin2hex(random_bytes(32)) . '.zip';
             $candidatePath = $directory . DIRECTORY_SEPARATOR . $archiveName;
-            if (!@rename($sourcePath, $candidatePath)) {
+            if (!$this->filesystem->moveAtomically($sourcePath, $candidatePath)) {
                 throw new \RuntimeException('Could not move the page archive into protected storage.');
             }
             $storedPath = $candidatePath;
@@ -118,7 +126,16 @@ final class WordPressPageSourceArchiveArtifactStore implements PageSourceArchive
             return;
         }
 
-        $this->deleteFile($this->archiveDirectory() . DIRECTORY_SEPARATOR . $archiveName);
+        try {
+            $this->deleteFile($this->archiveDirectory() . DIRECTORY_SEPARATOR . $archiveName);
+        } catch (\Throwable $failure) {
+            // Cron must keep running. A leftover file is acceptable — the
+            // next scheduled cleanup run retries it.
+            error_log(sprintf(
+                '[Uncanny Page Builder] Page archive cleanup failed (%s).',
+                $failure::class,
+            ));
+        }
     }
 
     public function delete(PageSourceArchiveArtifact $artifact): void
@@ -145,11 +162,10 @@ final class WordPressPageSourceArchiveArtifactStore implements PageSourceArchive
     private function prepareDirectory(): string
     {
         $directory = $this->archiveDirectory();
-        if (!is_dir($directory) && !@mkdir($directory, 0700, true) && !is_dir($directory)) {
+        if (!$this->filesystem->ensureDirectory($directory, 0700)) {
             throw new \RuntimeException('Could not create protected page archive storage.');
         }
 
-        @chmod($directory, 0700);
         $this->assertDirectoryIsProtected($directory);
         $this->writeProtectionFile($directory . DIRECTORY_SEPARATOR . 'index.php', "<?php\n// Silence is golden.\n");
         $this->writeProtectionFile($directory . DIRECTORY_SEPARATOR . '.htaccess', "Deny from all\nRequire all denied\n");
@@ -187,8 +203,23 @@ final class WordPressPageSourceArchiveArtifactStore implements PageSourceArchive
         }
 
         $tempDirectory = function_exists('get_temp_dir') ? get_temp_dir() : sys_get_temp_dir();
+        $installationPath = defined('ABSPATH')
+            ? (string) constant('ABSPATH')
+            : dirname(__DIR__, 3);
+        $installationPath = str_replace('\\', '/', rtrim($installationPath, '/\\'));
+        if (PHP_OS_FAMILY === 'Windows') {
+            $installationPath = strtolower($installationPath);
+        }
 
-        return rtrim($tempDirectory, '/\\') . DIRECTORY_SEPARATOR . self::DIRECTORY_NAME;
+        // A shared system temp directory can serve sites with different OS
+        // users. Each installation needs its own protected 0700 directory.
+        $installationKey = substr(hash('sha256', $installationPath), 0, 24);
+
+        return rtrim($tempDirectory, '/\\')
+            . DIRECTORY_SEPARATOR
+            . self::DIRECTORY_NAME
+            . '-'
+            . $installationKey;
     }
 
     private function sweepStaleArtifacts(?string $directory = null): void
@@ -217,26 +248,49 @@ final class WordPressPageSourceArchiveArtifactStore implements PageSourceArchive
         }
     }
 
+    private function sweepLegacyArtifacts(): void
+    {
+        $legacyDirectory = $this->legacyArchiveDirectory();
+        if ($legacyDirectory === null || $legacyDirectory === $this->archiveDirectory()) {
+            return;
+        }
+
+        try {
+            // Old releases used one shared temp directory. Remove only expired
+            // token-shaped archives so an older in-flight download can finish.
+            $this->sweepStaleArtifacts($legacyDirectory);
+        } catch (\Throwable $failure) {
+            // Legacy cleanup is optional. It cannot change a new archive's
+            // storage result.
+            error_log('[Uncanny Page Builder] Legacy page archive cleanup failed (' . $failure::class . ').');
+        }
+    }
+
+    private function legacyArchiveDirectory(): ?string
+    {
+        if (is_string($this->legacyDirectory) && $this->legacyDirectory !== '') {
+            return rtrim($this->legacyDirectory, '/\\');
+        }
+
+        if (is_string($this->directory) && $this->directory !== '') {
+            return null;
+        }
+
+        $tempDirectory = function_exists('get_temp_dir') ? get_temp_dir() : sys_get_temp_dir();
+
+        return rtrim($tempDirectory, '/\\') . DIRECTORY_SEPARATOR . self::DIRECTORY_NAME;
+    }
+
     private function writeProtectionFile(string $path, string $contents): void
     {
         if (is_file($path)) {
             return;
         }
 
-        $handle = @fopen($path, 'x');
-        if ($handle === false) {
+        if (!$this->filesystem->createExclusive($path, $contents)) {
             if (!is_file($path)) {
                 throw new \RuntimeException('Could not protect page archive storage.');
             }
-            return;
-        }
-
-        try {
-            if (fwrite($handle, $contents) !== strlen($contents)) {
-                throw new \RuntimeException('Could not protect page archive storage.');
-            }
-        } finally {
-            fclose($handle);
         }
     }
 
@@ -246,10 +300,10 @@ final class WordPressPageSourceArchiveArtifactStore implements PageSourceArchive
             return;
         }
 
-        if (!is_writable($path)) {
-            @chmod($path, 0600);
+        if (!$this->filesystem->isWritable($path)) {
+            $this->filesystem->chmod($path, 0600);
         }
-        @unlink($path);
+        $this->filesystem->delete($path);
     }
 
     private function acquireLock(string $lockKey): bool

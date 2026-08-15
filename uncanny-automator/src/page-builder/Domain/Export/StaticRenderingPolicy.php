@@ -112,8 +112,11 @@ final class StaticRenderingPolicy
     {
     }
 
-    public function prepareHtml(string $html, string $source): StaticRenderingResult
-    {
+    public function prepareHtml(
+        string $html,
+        string $source,
+        StaticExportPurpose $purpose = StaticExportPurpose::Portable,
+    ): StaticRenderingResult {
         $records = [];
         $prepared = $html;
 
@@ -126,6 +129,17 @@ final class StaticRenderingPolicy
                     'classification' => $classification->value,
                     'status' => 'passed',
                     'message' => 'Binding can be included in published output.',
+                ];
+                continue;
+            }
+
+            if ($purpose === StaticExportPurpose::Publication) {
+                $records[] = [
+                    'source' => $source,
+                    'binding' => $bindingId,
+                    'classification' => $classification->value,
+                    'status' => 'runtime',
+                    'message' => 'Binding will resolve for each public request.',
                 ];
                 continue;
             }
@@ -162,7 +176,7 @@ final class StaticRenderingPolicy
 
         $this->sortRecursively($payload);
 
-        return hash('sha256', json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+        return hash('sha256', self::encodeJson($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
     }
 
     /**
@@ -293,5 +307,12 @@ final class StaticRenderingPolicy
         if (!array_is_list($value)) {
             ksort($value);
         }
+    }
+
+    private static function encodeJson(mixed $value, int $flags = 0): string|false
+    {
+        // Exact JSON bytes are part of the domain hash; wp_json_encode() may repair invalid UTF-8 and change the digest.
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.json_encode_json_encode -- This deterministic language operation is not a WordPress capability.
+        return json_encode($value, $flags);
     }
 }

@@ -424,7 +424,7 @@ class Admin_Menu {
 		$free_credits = $is_connected ? ( $usage_limit - $paid_usage_count ) : 250;
 
 		// Ledger payload from the API server (api/credits/ledger). The API may
-		// omit `llm_credits` entirely if the upstream call failed — treat as optional.
+		// omit `llm_credits` until the allocation is exposed or if the upstream call fails.
 		$ledger          = isset( $is_connected['llm_credits'] ) ? (array) $is_connected['llm_credits'] : array();
 		$ledger_has_data = ! empty( $ledger ) && ! empty( $ledger['success'] );
 
@@ -1024,8 +1024,24 @@ class Admin_Menu {
 				'allocation_name' => $llm_allocation_name,
 				'expires_on'      => $llm_expires_on,
 			),
-			'show_agent_usage'   => defined( 'AUTOMATOR_PRO_FILE' ),
+			'show_agent_usage'   => self::should_show_agent_usage( (bool) $is_connected, $ledger_has_data ),
 		);
+	}
+
+	/**
+	 * Determine whether the dashboard can show Uncanny Agent usage.
+	 *
+	 * The pane requires a connected account and a successful ledger response.
+	 * This gate applies to Free and Pro accounts.
+	 *
+	 * @param bool $is_connected    Whether the site has a connected account.
+	 * @param bool $ledger_has_data Whether the Agent ledger response succeeded.
+	 *
+	 * @return bool
+	 */
+	public static function should_show_agent_usage( bool $is_connected, bool $ledger_has_data ): bool {
+
+		return $is_connected && $ledger_has_data;
 	}
 
 	/**
@@ -1960,6 +1976,7 @@ class Admin_Menu {
 				'sslverify' => true,
 			)
 		);
+		error_log( var_export( wp_remote_retrieve_body( $response ), true ) );
 
 		if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) {
 
@@ -1991,17 +2008,36 @@ class Admin_Menu {
 	}
 
 	/**
-	 * Clear cached license / credits transients.
+	 * Clear evidence cached for the current license/account identity.
 	 *
-	 * Called whenever the license key changes (activate or deactivate) so the next
-	 * render sees fresh state instead of waiting for the natural transient TTL.
+	 * The Transient bounded context owns the exact key set. In particular, it
+	 * clears the failed-license marker as well as the license and legacy credit
+	 * snapshots, while preserving unrelated Automator transients.
 	 *
 	 * @return void
 	 */
 	private function flush_license_caches() {
-		delete_transient( 'automator_api_license' );
-		delete_transient( 'automator_api_credit_data' );
-		delete_transient( 'automator_api_credits' );
+		Automator()->cache->delete_license_transients();
+	}
+
+	/**
+	 * Store one completed Free-license activation and invalidate its old evidence.
+	 *
+	 * Automator_Options intentionally emits no update event for a same-value write.
+	 * Reconnecting the same key is nevertheless an explicit support recovery action,
+	 * so it must clear the previous license and allocation snapshots after the remote
+	 * activation succeeds. Keeping this after the response preserves known-good
+	 * evidence when the remote activation itself fails.
+	 *
+	 * @param object $license_data Successful activation response.
+	 *
+	 * @return void
+	 */
+	private function store_free_license_activation( $license_data ) {
+		automator_update_option( 'uap_automator_free_license_status', $license_data->license );
+		automator_update_option( 'uap_automator_free_license_data', (array) $license_data );
+
+		$this->flush_license_caches();
 	}
 
 	/**
@@ -2009,8 +2045,6 @@ class Admin_Menu {
 	 */
 	public function activate_license() {
 		$this->validate_credentials( automator_filter_input( 'state' ) );
-
-		$this->flush_license_caches();
 
 		automator_update_option( 'uap_automator_free_license_key', automator_filter_input( 'uap_automator_free_license_key' ) );
 
@@ -2022,10 +2056,7 @@ class Admin_Menu {
 			automator_delete_option( 'uap_automator_free_license_key' );
 		}
 
-		// The $license_data->license_check will be either "valid", "invalid", "expired", "disabled", "inactive", or "site_inactive".
-		automator_update_option( 'uap_automator_free_license_status', $license_data->license );
-		// Update the license data as well.
-		automator_update_option( 'uap_automator_free_license_data', (array) $license_data );
+		$this->store_free_license_activation( $license_data );
 
 		if ( ! empty( automator_filter_input( 'ua_connecting_integration_id' ) ) ) {
 			wp_safe_redirect(
@@ -2057,8 +2088,6 @@ class Admin_Menu {
 
 		$this->validate_credentials( automator_filter_input( 'state' ) );
 
-		$this->flush_license_caches();
-
 		$license = automator_get_option( 'uap_automator_free_license_key' );
 
 		if ( $license ) {
@@ -2068,6 +2097,10 @@ class Admin_Menu {
 				automator_delete_option( 'uap_automator_free_license_status' );
 				automator_delete_option( 'uap_automator_free_license_key' );
 				automator_delete_option( 'uap_automator_free_license_data' );
+
+				// Option deletion has no lifecycle hook. After the remote disconnect
+				// succeeds, invalidate once all local identity removals were attempted.
+				$this->flush_license_caches();
 			}
 
 			wp_safe_redirect( remove_query_arg( array( 'action' ) ) );

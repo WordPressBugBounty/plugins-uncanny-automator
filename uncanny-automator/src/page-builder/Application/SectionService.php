@@ -19,6 +19,7 @@ use UncannyPageBuilder\Domain\Exception\HistorySnapshotConflictException;
 use UncannyPageBuilder\Domain\Exception\PageNotFoundException;
 use UncannyPageBuilder\Domain\Exception\SectionNotFoundException;
 use UncannyPageBuilder\Domain\Section\BindingTargetReference;
+use UncannyPageBuilder\Domain\Section\CopiedSectionIdentityRemapper;
 use UncannyPageBuilder\Domain\Section\HtmlCssProcessor;
 use UncannyPageBuilder\Domain\Section\LucideIconValidator;
 use UncannyPageBuilder\Domain\Section\Section;
@@ -95,7 +96,12 @@ final class SectionService implements SectionSourceWriter, SectionHistoryRestore
             $newSection->assignId($sectionId);
             $sections->replaceById($sectionId, $newSection);
         } else {
-            $sectionContent = $this->sanitizeContent(SectionContent::fromArray($content), $warnings);
+            $sectionContent = CopiedSectionIdentityRemapper::remapCollisions(
+                SectionContent::fromArray($content),
+                $sections,
+                $pageId . ':' . $sections->count(),
+            );
+            $sectionContent = $this->sanitizeContent($sectionContent, $warnings);
             $newSection = Section::create(
                 $pageId,
                 $sections->count(),
@@ -360,6 +366,17 @@ final class SectionService implements SectionSourceWriter, SectionHistoryRestore
     }
 
     /**
+     * Save one browser-owned Manual layout inside its aggregate transaction.
+     *
+     * @param array $rawSections Raw array from the Manual change set.
+     * @return array{sections: array, compiled_css: string, warnings: string[]}
+     */
+    public function saveManualLayout(int $pageId, array $rawSections): array
+    {
+        return $this->restoreInternal($pageId, $rawSections, true, null, false);
+    }
+
+    /**
      * Restore a history snapshot without recording another operation.
      *
      * @param array $rawSections Raw section snapshot payload.
@@ -489,8 +506,8 @@ final class SectionService implements SectionSourceWriter, SectionHistoryRestore
             if (
                 (int) ($current['id'] ?? 0) !== (int) ($expected['id'] ?? 0)
                 || (string) ($current['name'] ?? '') !== (string) ($expected['name'] ?? '')
-                || (string) json_encode($current['content'] ?? [], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
-                    !== (string) json_encode($expected['content'] ?? [], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
+                || (string) self::encodeJson($current['content'] ?? [], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
+                    !== (string) self::encodeJson($expected['content'] ?? [], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
             ) {
                 throw new HistorySnapshotConflictException();
             }
@@ -1143,5 +1160,12 @@ final class SectionService implements SectionSourceWriter, SectionHistoryRestore
             // The canonical source write has already committed; there is no
             // safe rollback or caller retry at this point.
         }
+    }
+
+    private static function encodeJson(mixed $value, int $flags = 0): string|false
+    {
+        // Exact JSON bytes define equality here; wp_json_encode() may repair invalid UTF-8 and change the comparison.
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.json_encode_json_encode -- This deterministic language operation is not an external capability.
+        return json_encode($value, $flags);
     }
 }

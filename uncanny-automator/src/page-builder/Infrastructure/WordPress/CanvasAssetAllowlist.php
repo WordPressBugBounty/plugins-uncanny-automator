@@ -114,14 +114,20 @@ final class CanvasAssetAllowlist
             return;
         }
 
-        $allowed = $this->allowedStyles();
+        try {
+            $allowed = $this->allowedStyles();
 
-        foreach ($wp_styles->queue as $handle) {
-            if ($this->isAllowedAsset($handle, $wp_styles->registered[$handle] ?? null, $allowed)) {
-                continue;
+            foreach ($wp_styles->queue as $handle) {
+                if ($this->isAllowedAsset($handle, $wp_styles->registered[$handle] ?? null, $allowed)) {
+                    continue;
+                }
+
+                wp_dequeue_style($handle);
             }
-
-            wp_dequeue_style($handle);
+        } catch (\Throwable $failure) {
+            // A failed allowlist decision must not strip queued assets or
+            // terminate the shared request.
+            error_log('[Uncanny Page Builder] Canvas style allowlist enforcement failed (' . $failure::class . ')');
         }
     }
 
@@ -133,14 +139,20 @@ final class CanvasAssetAllowlist
             return;
         }
 
-        $allowed = $this->allowedScripts();
+        try {
+            $allowed = $this->allowedScripts();
 
-        foreach ($wp_scripts->queue as $handle) {
-            if ($this->isAllowedAsset($handle, $wp_scripts->registered[$handle] ?? null, $allowed)) {
-                continue;
+            foreach ($wp_scripts->queue as $handle) {
+                if ($this->isAllowedAsset($handle, $wp_scripts->registered[$handle] ?? null, $allowed)) {
+                    continue;
+                }
+
+                wp_dequeue_script($handle);
             }
-
-            wp_dequeue_script($handle);
+        } catch (\Throwable $failure) {
+            // A failed allowlist decision must not strip queued assets or
+            // terminate the shared request.
+            error_log('[Uncanny Page Builder] Canvas script allowlist enforcement failed (' . $failure::class . ')');
         }
     }
 
@@ -204,22 +216,32 @@ final class CanvasAssetAllowlist
         }
 
         if (str_starts_with($src, '//')) {
-            $scheme = parse_url($base, PHP_URL_SCHEME);
+            $scheme = self::parseUrl($base, PHP_URL_SCHEME);
             return ($scheme ?: 'https') . ':' . $src;
         }
 
         if (str_starts_with($src, '/') && preg_match('#^https?://#i', $base) === 1) {
-            $scheme = parse_url($base, PHP_URL_SCHEME);
-            $host = parse_url($base, PHP_URL_HOST);
+            $scheme = self::parseUrl($base, PHP_URL_SCHEME);
+            $host = self::parseUrl($base, PHP_URL_HOST);
             if (!is_string($scheme) || !is_string($host)) {
                 return $src;
             }
 
-            $port = parse_url($base, PHP_URL_PORT);
+            $port = self::parseUrl($base, PHP_URL_PORT);
             $origin = $scheme . '://' . $host . (is_int($port) ? ':' . $port : '');
             return $origin . $src;
         }
 
         return $src;
+    }
+
+    private static function parseUrl(string $url, int $component = -1): array|string|int|false|null
+    {
+        if (function_exists('wp_parse_url')) {
+            return wp_parse_url($url, $component);
+        }
+
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.parse_url_parse_url -- Standalone allowlist tests run without WordPress functions.
+        return parse_url($url, $component);
     }
 }

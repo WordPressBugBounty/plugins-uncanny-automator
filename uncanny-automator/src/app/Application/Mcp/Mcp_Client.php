@@ -30,6 +30,9 @@ use Uncanny_Automator\App\Events\Dispatcher;
  * Class Mcp_Client
  *
  * @since 7.0.0 Moved to Application layer.
+ * @todo Move SDK and launcher gating decisions to the Uncanny_Agent bounded
+ *       context. Keep this class responsible for delivery after the context
+ *       permits access.
  */
 // phpcs:disable WordPress.Security.NonceVerification -- MCP client uses custom authentication.
 class Mcp_Client {
@@ -1365,7 +1368,10 @@ class Mcp_Client {
 	public function get_launcher_html( WP_REST_Request $request ) {
 		unset( $request );
 
-		if ( ! $this->get_uncanny_agent_setting( Admin_Settings_Uncanny_Agent_General::ENABLED_KEY ) ) {
+		if (
+			! $this->get_uncanny_agent_setting( Admin_Settings_Uncanny_Agent_General::ENABLED_KEY )
+			|| ! $this->should_render_surface( 'admin_launcher' )
+		) {
 			return rest_ensure_response(
 				array(
 					'html' => '',

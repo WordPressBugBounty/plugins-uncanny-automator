@@ -10,6 +10,7 @@ use UncannyPageBuilder\Application\Publishing\PagePublicationFailed;
 use UncannyPageBuilder\Application\Publishing\PagePublicationOutcome;
 use UncannyPageBuilder\Application\SourcePackage\PageSourceExportException;
 use UncannyPageBuilder\Domain\ErrorMessage;
+use UncannyPageBuilder\Domain\GlobalPart\GlobalPartCreationUncertainException;
 use UncannyPageBuilder\Domain\Exception\EditableUpdateException;
 use UncannyPageBuilder\Domain\Exception\HistorySnapshotConflictException;
 use UncannyPageBuilder\Domain\Exception\PageNotFoundException;
@@ -88,16 +89,41 @@ final class ControlDispatcher
                 'scope' => $e->scope(),
             ]);
         } catch (PagePublicationFailed $e) {
-            return ApiResponse::error($this->publicationError($e->outcome()), [
+            $error = $this->publicationError($e->outcome());
+            $data = [
                 'control_id' => $definition->id(),
                 'outcome' => $e->outcome()->value,
                 'detail' => $e->getMessage(),
                 'details' => $e->details(),
+            ];
+            if ($this->hasUnverifiedFallbackUploadsUrl($e)) {
+                return new \WP_Error(
+                    $error->name,
+                    "Page Builder could not verify this site's uploads or CDN URL. Ask a site administrator to confirm that direct upload files are public and allow the URL for Page Builder. Your draft is safe.",
+                    array_merge(['status' => $error->httpStatus()], $data),
+                );
+            }
+
+            return ApiResponse::error($error, $data);
+        } catch (GlobalPartCreationUncertainException $e) {
+            return ApiResponse::error(ErrorMessage::GpCreationUncertain, [
+                'control_id' => $definition->id(),
+                'retryable' => false,
+                'requires_read' => true,
+                'possible_global_part_id' => $e->globalPartId(),
+                'detail' => 'The creation result is uncertain. Read the reusable list before another create request.',
             ]);
         } catch (\Throwable $e) {
-            return ApiResponse::error(ErrorMessage::ControlInvokeFailed, [
-                'control_id' => $definition->id(),
-            ]);
+            if ($definition->writesEditorState()) {
+                return ApiResponse::error(ErrorMessage::WriteResultUncertain, [
+                    'control_id' => $definition->id(),
+                    'retryable' => false,
+                    'requires_read' => true,
+                    'detail' => 'The write result is uncertain. Read the current editor source before another write.',
+                ]);
+            }
+
+            return ApiResponse::error(ErrorMessage::ControlInvokeFailed, ['control_id' => $definition->id()]);
         }
     }
 
@@ -186,5 +212,11 @@ final class ControlDispatcher
             PagePublicationOutcome::PublicStateCommitFailed => ErrorMessage::PublicationCommitFailed,
             PagePublicationOutcome::Published => ErrorMessage::ControlInvokeFailed,
         };
+    }
+
+    private function hasUnverifiedFallbackUploadsUrl(PagePublicationFailed $failure): bool
+    {
+        return $failure->outcome() === PagePublicationOutcome::PublicStateCommitFailed
+            && ($failure->details()['reason_code'] ?? null) === 'fallback_upload_url_unverified';
     }
 }

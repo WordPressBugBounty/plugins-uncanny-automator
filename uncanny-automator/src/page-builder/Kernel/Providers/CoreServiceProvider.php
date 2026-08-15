@@ -4,13 +4,17 @@ declare(strict_types=1);
 
 namespace UncannyPageBuilder\Kernel\Providers;
 
+use UncannyPageBuilder\Application\Filesystem\LocalFileReaderInterface;
+use UncannyPageBuilder\Application\Filesystem\LocalFilesystemPortInterface;
 use UncannyPageBuilder\Application\Canvas\PublicPageRenderPolicy;
 use UncannyPageBuilder\Application\Canvas\PagePasswordProtectionInterface;
 use UncannyPageBuilder\Application\Rendering\PublishedPageAssetResolverInterface;
 use UncannyPageBuilder\Application\Rendering\PublishedPageReaderInterface;
 use UncannyPageBuilder\Application\Rendering\PublicPageIdentityReaderInterface;
 use UncannyPageBuilder\Application\Rendering\ReadPublishedPage;
+use UncannyPageBuilder\Infrastructure\WordPress\WordPressLocalFilesystem;
 use UncannyPageBuilder\Application\Canvas\CanvasGlobalPartRendererInterface;
+use UncannyPageBuilder\Application\Canvas\CanvasRefreshRendererInterface;
 use UncannyPageBuilder\Application\Canvas\CanvasGlobalPartsProviderInterface;
 use UncannyPageBuilder\Application\Canvas\CanvasGlobalPartsService;
 use UncannyPageBuilder\Api\PermissionChecker;
@@ -97,12 +101,14 @@ use UncannyPageBuilder\Application\Publishing\WorkingCanvasRefreshScheduler;
 use UncannyPageBuilder\Application\Publishing\ReadPageLiveState;
 use UncannyPageBuilder\Application\Publishing\PageLiveStateReaderInterface;
 use UncannyPageBuilder\Application\Publishing\PagePublisherInterface;
+use UncannyPageBuilder\Application\Publishing\PageDeactivationFallbackAssetResolverInterface;
 use UncannyPageBuilder\Application\Publishing\PublishPage;
 use UncannyPageBuilder\Application\Publishing\SwitchPageToDraft;
 use UncannyPageBuilder\Application\Publishing\SwitchPageToDraftInterface;
 use UncannyPageBuilder\Application\Publishing\RefreshWorkingCanvas;
 use UncannyPageBuilder\Application\Publishing\WorkingCanvasRefresherInterface;
 use UncannyPageBuilder\Application\SectionService;
+use UncannyPageBuilder\Application\Observability\FailureReporterInterface;
 use UncannyPageBuilder\Application\Section\SectionPostCommitFailureReporterInterface;
 use UncannyPageBuilder\Application\Section\SectionSourceSanitizerInterface;
 use UncannyPageBuilder\Application\ShellImportService;
@@ -175,6 +181,7 @@ use UncannyPageBuilder\Infrastructure\Binding\BindingLoader;
 use UncannyPageBuilder\Infrastructure\Section\LucideIconFinder;
 use UncannyPageBuilder\Infrastructure\Section\StaticLucideIconCatalog;
 use UncannyPageBuilder\Infrastructure\Rendering\CanvasRenderer;
+use UncannyPageBuilder\Infrastructure\Rendering\CanvasRefreshRenderer;
 use UncannyPageBuilder\Infrastructure\Rendering\DynamicRenderer;
 use UncannyPageBuilder\Infrastructure\Rendering\PageJavaScriptRuntimeRenderer;
 use UncannyPageBuilder\Infrastructure\Rendering\PublishedPageAssetResolver;
@@ -192,6 +199,7 @@ use UncannyPageBuilder\Infrastructure\WordPress\KsesSanitizer;
 use UncannyPageBuilder\Infrastructure\WordPress\WordPressPageBuilderAllowedCapabilityPort;
 use UncannyPageBuilder\Infrastructure\WordPress\WordPressContentTypeCatalog;
 use UncannyPageBuilder\Infrastructure\WordPress\WordPressSectionPostCommitFailureReporter;
+use UncannyPageBuilder\Infrastructure\WordPress\WordPressFailureReporter;
 use UncannyPageBuilder\Infrastructure\WordPress\WpCronWorkingCanvasRefreshQueue;
 use UncannyPageBuilder\Infrastructure\WordPress\WordPressNavigationMenuRepository;
 use UncannyPageBuilder\Infrastructure\WordPress\WordPressCanvasPort;
@@ -199,6 +207,8 @@ use UncannyPageBuilder\Infrastructure\WordPress\WordPressPageDetailsProjection;
 use UncannyPageBuilder\Infrastructure\WordPress\WordPressPagePasswordProtection;
 use UncannyPageBuilder\Infrastructure\WordPress\WordPressPagePublicationAuthorizer;
 use UncannyPageBuilder\Infrastructure\WordPress\WordPressPagePublisher;
+use UncannyPageBuilder\Infrastructure\WordPress\WordPressUploadedFallbackAssetResolver;
+use UncannyPageBuilder\Infrastructure\WordPress\WordPressPublishedFallbackComposer;
 use UncannyPageBuilder\Infrastructure\WordPress\WordPressPageDraftStatusPort;
 use UncannyPageBuilder\Infrastructure\WordPress\WordPressPageHandover;
 use UncannyPageBuilder\Infrastructure\WordPress\WordPressFontSettings;
@@ -452,12 +462,31 @@ final class CoreServiceProvider implements ServiceProviderInterface
             );
         });
 
+        $container->factory(WordPressLocalFilesystem::class, static fn (): WordPressLocalFilesystem => new WordPressLocalFilesystem());
+        $container->factory(LocalFileReaderInterface::class, static fn (Container $c): LocalFileReaderInterface => $c->typed(WordPressLocalFilesystem::class));
+        $container->factory(LocalFilesystemPortInterface::class, static fn (Container $c): LocalFilesystemPortInterface => $c->typed(WordPressLocalFilesystem::class));
+
         $container->factory(PublishedPageAssetResolver::class, static function (): PublishedPageAssetResolver {
             return new PublishedPageAssetResolver(UNCANNY_PB_PATH, UNCANNY_PB_URL);
         });
 
         $container->factory(PublishedPageAssetResolverInterface::class, static function (Container $c): PublishedPageAssetResolverInterface {
             return $c->typed(PublishedPageAssetResolver::class);
+        });
+
+        $container->factory(WordPressUploadedFallbackAssetResolver::class, static function (Container $c): WordPressUploadedFallbackAssetResolver {
+            return new WordPressUploadedFallbackAssetResolver(
+                $c->typed(PublishedPageAssetResolver::class),
+                UNCANNY_PB_PATH,
+            );
+        });
+
+        $container->factory(PageDeactivationFallbackAssetResolverInterface::class, static function (Container $c): PageDeactivationFallbackAssetResolverInterface {
+            return $c->typed(WordPressUploadedFallbackAssetResolver::class);
+        });
+
+        $container->factory(WordPressPublishedFallbackComposer::class, static function (): WordPressPublishedFallbackComposer {
+            return new WordPressPublishedFallbackComposer();
         });
 
         $container->factory(WordPressPublicPageIdentityReader::class, static function (): WordPressPublicPageIdentityReader {
@@ -698,11 +727,20 @@ final class CoreServiceProvider implements ServiceProviderInterface
             return new PublishedCanvasRenderer(
                 $c->typed(PublicPageRenderPolicy::class),
                 UNCANNY_PB_PATH,
+                $c->typed(DynamicRenderer::class),
+                $c->typed(OriginalPageContentReaderInterface::class),
             );
         });
 
         $container->factory(CanvasGlobalPartRendererInterface::class, static function (Container $c): CanvasGlobalPartRendererInterface {
             return $c->typed(CanvasRenderer::class);
+        });
+
+        $container->factory(CanvasRefreshRendererInterface::class, static function (Container $c): CanvasRefreshRendererInterface {
+            return new CanvasRefreshRenderer(
+                $c->typed(CanvasRenderer::class),
+                $c->typed(PageJavaScriptRuntimeRenderer::class),
+            );
         });
 
         $container->factory(CanvasGlobalPartsService::class, static function (Container $c): CanvasGlobalPartsService {
@@ -767,6 +805,7 @@ final class CoreServiceProvider implements ServiceProviderInterface
         $container->factory(StaticExportHtmlRendererInterface::class, static function (Container $c): StaticExportHtmlRendererInterface {
             return new CanvasStaticExportHtmlRenderer(
                 $c->typed(CanvasRenderer::class),
+                $c->typed(ShortcodeBindingNormalizer::class),
             );
         });
 
@@ -823,6 +862,14 @@ final class CoreServiceProvider implements ServiceProviderInterface
             return $c->typed(WordPressSectionPostCommitFailureReporter::class);
         });
 
+        $container->factory(WordPressFailureReporter::class, static function (): WordPressFailureReporter {
+            return new WordPressFailureReporter();
+        });
+
+        $container->factory(FailureReporterInterface::class, static function (Container $c): FailureReporterInterface {
+            return $c->typed(WordPressFailureReporter::class);
+        });
+
         // ── Domain ────────────────────────────────────────
         $container->factory(CssMinifier::class, static function (): CssMinifier {
             return new CssMinifier();
@@ -844,6 +891,7 @@ final class CoreServiceProvider implements ServiceProviderInterface
                 $c->typed(WpPageGlobalPartResolver::class),
                 $c->typed(SourceGenerationStoreInterface::class),
                 $c->typed(PageSourceMutation::class),
+                $c->typed(FailureReporterInterface::class),
             );
         });
 
@@ -853,6 +901,7 @@ final class CoreServiceProvider implements ServiceProviderInterface
                 $c->typed(SettingsRepositoryInterface::class),
                 $c->typed(GlobalSourceMutation::class),
                 $c->typed(WorkingCanvasRefreshScheduler::class),
+                $c->typed(FailureReporterInterface::class),
             );
         });
 
@@ -1177,6 +1226,7 @@ final class CoreServiceProvider implements ServiceProviderInterface
                 $c->typed(DatabaseSectionRepository::class),
                 $c->typed(WorkingCanvasRefreshScheduler::class),
                 $c->typed(LucideIconValidator::class),
+                $c->typed(FailureReporterInterface::class),
             );
         });
 
@@ -1184,6 +1234,7 @@ final class CoreServiceProvider implements ServiceProviderInterface
             return new ShellImportService(
                 $c->typed(RenderedShellAnalyzer::class),
                 $c->typed(GlobalPartService::class),
+                $c->typed(FailureReporterInterface::class),
             );
         });
 
@@ -1209,6 +1260,7 @@ final class CoreServiceProvider implements ServiceProviderInterface
                 $c->typed(SourceGenerationStoreInterface::class),
                 $c->typed(GlobalSourceMutation::class),
                 $c->typed(PageSourceMutation::class),
+                $c->typed(FailureReporterInterface::class),
             );
         });
 
@@ -1292,6 +1344,9 @@ final class CoreServiceProvider implements ServiceProviderInterface
                 sourceSnapshots: $c->typed(PageSourceSnapshotRepositoryInterface::class),
                 themeTemplates: $c->typed(ThemeCompositionPageTemplateSynchronizerInterface::class),
                 supportsPostType: $c->typed(SupportsPostTypeUseCase::class),
+                fallbackAssets: $c->typed(PageDeactivationFallbackAssetResolverInterface::class),
+                fallbackComposer: $c->typed(WordPressPublishedFallbackComposer::class),
+                originalContent: $c->typed(WpOriginalPageContentStore::class),
             );
         });
 
@@ -1369,14 +1424,20 @@ final class CoreServiceProvider implements ServiceProviderInterface
                 $c->typed(BearerAuthenticator::class),
                 $c->typed(GetPageBuilderAllowedCapabilities::class),
                 $c->typed(SupportsPostTypeUseCase::class),
+                $c->typed(FailureReporterInterface::class),
             );
         });
     }
 
     public function boot(Container $container): void
     {
-        // This one option-backed check runs during plugin boot, before REST
-        // routes or frontend rendering hooks can reach a repository.
+        /*
+         * This gate intentionally runs before REST routes and public render
+         * hooks. If a required WordPress table is not transactional, Page
+         * Builder does not serve even an existing artifact. The host can then
+         * keep the WordPress body fallback without opening a partly booted
+         * runtime against an unsafe persistence boundary.
+         */
         $container->typed(SchemaInstallerInterface::class)->ensureCurrentSite();
         (new WpDynamicContentConfigProvider())->register();
     }
