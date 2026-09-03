@@ -4,7 +4,7 @@ Tags: ai, automation, ai agent, ai assistant, workflow automation
 Requires at least: 5.8
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 7.6.1
+Stable tag: 7.6.1.1
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -466,6 +466,14 @@ Yes — Uncanny Automator is free to install and use. It includes Uncanny Recipe
 
 == Changelog ==
 
+= 7.6.1.1 [2026-09-03] =
+
+**Fixed:**
+
+* LearnDash - Restored "Any" option handling across multiple triggers and dropdowns. #8514
+* Memberium for Keap and SureCart - Fixed triggers and actions failing to run on frontend requests. #8523
+* Uncanny Agent and Page Builder - Improved feature availability during temporary connection issues. #8501
+
 = 7.6.1 [2026-09-01] =
 
 **Updated:**
@@ -474,7 +482,7 @@ Yes — Uncanny Automator is free to install and use. It includes Uncanny Recipe
 
 **Fixed:**
 
-* Formidable - Restored the shared helpers instance to keep things running smoothly. #8518
+* Formidable Forms - Restored the shared helpers instance to keep things running smoothly. #8518
 * Formidable Forms - Submission triggers now ignore incomplete and abandoned entries. #8509
 * Hardened PeepSo and related token processing against unsafe serialized data. #8505
 * LearnDash - A user has completed X% of a course - Fixed "0f" to correctly display "% of". #8516
